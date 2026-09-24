@@ -1,0 +1,35 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@tanstack/react-query": "^5.103.2",
+    "expo": "~57.0.25",
+    "expo-constants": "~57.0.19",
+    "expo-linking": "~57.0.11",
+    "expo-router": "~57.0.23",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-hook-form": "^7.88.0",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "openapi-fetch": "^0.17.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "api:types": "openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts"
+  },
+  "private": true
+}
