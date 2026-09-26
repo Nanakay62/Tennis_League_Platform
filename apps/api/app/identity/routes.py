@@ -1,0 +1,175 @@
+"""Identity, authentication, and profile endpoints."""
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import get_db
+from app.identity.deps import get_current_user
+from app.identity.models import User
+from app.identity.schemas import (
+    AppVersionResponse,
+    CommunicationSettingsResponse,
+    CommunicationSettingsUpdate,
+    PlayerProfileResponse,
+    PlayerProfileUpdate,
+    RefreshTokenRequest,
+    TokenResponse,
+    UserLoginRequest,
+    UserRegisterRequest,
+    UserResponse,
+)
+from app.identity.service import (
+    authenticate_user,
+    delete_and_anonymize_user,
+    register_user,
+    revoke_refresh_token,
+    rotate_refresh_token,
+    update_communication_preferences,
+    update_player_profile,
+)
+
+router = APIRouter(tags=["identity"])
+
+
+@router.post("/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(req: UserRegisterRequest, session: AsyncSession = Depends(get_db)):
+    """Register a new player account and profile."""
+    try:
+        _, tokens = await register_user(session, req)
+        return tokens
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/auth/login", response_model=TokenResponse)
+async def login(req: UserLoginRequest, session: AsyncSession = Depends(get_db)):
+    """Log in with email and password."""
+    try:
+        _, tokens = await authenticate_user(session, req.email, req.password)
+        return tokens
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+
+@router.post("/auth/refresh", response_model=TokenResponse)
+async def refresh_token(req: RefreshTokenRequest, session: AsyncSession = Depends(get_db)):
+    """Rotate an existing refresh token for a new token pair."""
+    try:
+        tokens = await rotate_refresh_token(session, req.refresh_token)
+        return tokens
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+
+@router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(req: RefreshTokenRequest, session: AsyncSession = Depends(get_db)):
+    """Revoke a refresh token on sign-out."""
+    await revoke_refresh_token(session, req.refresh_token)
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_user)):
+    """Retrieve currently authenticated user and player profile."""
+    profile_data = None
+    if user.profile:
+        profile_data = PlayerProfileResponse(
+            display_name=user.profile.display_name,
+            phone=user.profile.phone,
+            rating=user.profile.rating,
+            home_area=user.profile.home_area,
+            is_daytime=user.profile.is_daytime,
+            veteran_match_count=user.profile.veteran_match_count,
+            is_anonymized=user.profile.is_anonymized,
+        )
+
+    return UserResponse(
+        id=user.id,
+        market_id=user.market_id,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        profile=profile_data,
+    )
+
+
+@router.patch("/me/profile", response_model=PlayerProfileResponse)
+async def update_profile(
+    updates: PlayerProfileUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    """Update profile information."""
+    profile = await update_player_profile(session, user.id, updates)
+    return PlayerProfileResponse(
+        display_name=profile.display_name,
+        phone=profile.phone,
+        rating=profile.rating,
+        home_area=profile.home_area,
+        is_daytime=profile.is_daytime,
+        veteran_match_count=profile.veteran_match_count,
+        is_anonymized=profile.is_anonymized,
+    )
+
+
+@router.get("/me/communication-settings", response_model=CommunicationSettingsResponse)
+async def get_communication_settings(user: User = Depends(get_current_user)):
+    """Get player communication toggles."""
+    comms = user.communication_settings
+    if not comms:
+        return CommunicationSettingsResponse(
+            email_kickoff=True,
+            email_reminders=True,
+            email_results=True,
+            push_kickoff=True,
+            push_reminders=True,
+            push_results=True,
+        )
+    return CommunicationSettingsResponse(
+        email_kickoff=comms.email_kickoff,
+        email_reminders=comms.email_reminders,
+        email_results=comms.email_results,
+        push_kickoff=comms.push_kickoff,
+        push_reminders=comms.push_reminders,
+        push_results=comms.push_results,
+    )
+
+
+@router.put("/me/communication-settings", response_model=CommunicationSettingsResponse)
+async def put_communication_settings(
+    updates: CommunicationSettingsUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    """Update communication preferences."""
+    comms = await update_communication_preferences(session, user.id, updates)
+    return CommunicationSettingsResponse(
+        email_kickoff=comms.email_kickoff,
+        email_reminders=comms.email_reminders,
+        email_results=comms.email_results,
+        push_kickoff=comms.push_kickoff,
+        push_reminders=comms.push_reminders,
+        push_results=comms.push_results,
+    )
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_data(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    """Apple App Store & GDPR Account Deletion.
+    Deletes personal data and anonymizes historical match records.
+    """
+    await delete_and_anonymize_user(session, user.id)
+
+
+@router.get("/app/version", response_model=AppVersionResponse)
+async def get_app_version(platform: str = Query(default="web")):
+    """Check app version compatibility for mobile and web clients."""
+    return AppVersionResponse(
+        platform=platform,
+        current_version="1.0.0",
+        minimum_version="1.0.0",
+        is_update_required=False,
+        update_url=None,
+    )

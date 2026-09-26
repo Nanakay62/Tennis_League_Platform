@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.catalog import models as _catalog_models  # noqa: F401
 from app.config import get_settings
+from app.db import Base, engine
 from app.domain.standings import (
     DivisionRules,
     compute_standings,
@@ -15,15 +17,22 @@ from app.domain.standings import (
 from app.domain.standings import (
     StandingRow as DomainStandingRow,
 )
+from app.identity import models as _identity_models  # noqa: F401
+from app.identity.routes import router as identity_router
+from app.leagues import models as _leagues_models  # noqa: F401
+from app.markets import models as _markets_models  # noqa: F401
+from app.matches import models as _matches_models  # noqa: F401
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup actions
+    # Auto-initialize database tables if using SQLite or test database
+    if "sqlite" in settings.DATABASE_URL:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     yield
-    # Shutdown actions
 
 
 app = FastAPI(
@@ -41,6 +50,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(identity_router)
 
 
 # Pydantic Schemas for API contract

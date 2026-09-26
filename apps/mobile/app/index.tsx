@@ -30,6 +30,14 @@ export default function HomeScreen() {
             <Text style={styles.actionDesc}>3.5 Division live tables</Text>
           </TouchableOpacity>
         </Link>
+
+        <Link href="/account" asChild>
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8}>
+            <Text style={styles.actionIcon}>👤</Text>
+            <Text style={styles.actionTitle}>My Account</Text>
+            <Text style={styles.actionDesc}>Profile, ratings & notifications</Text>
+          </TouchableOpacity>
+        </Link>
       </View>
 
       <View style={styles.infoBox}>
