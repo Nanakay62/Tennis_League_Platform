@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.billing import models as _billing_models  # noqa: F401
+from app.billing.routes import router as billing_router
 from app.catalog import models as _catalog_models  # noqa: F401
 from app.config import get_settings
 from app.db import Base, engine
@@ -52,6 +54,7 @@ app.add_middleware(
 )
 
 app.include_router(identity_router)
+app.include_router(billing_router)
 
 
 # Pydantic Schemas for API contract
