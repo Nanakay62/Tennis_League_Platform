@@ -50,15 +50,17 @@ export function Sidebar() {
             ? pathname === item.href
             : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
+          const navItemStyle = StyleSheet.flatten([
+            styles.navItem,
+            isActive && {
+              backgroundColor: colors.sidebarActive,
+            },
+          ]);
+
           return (
             <Link key={item.href} href={item.href as any} asChild>
               <TouchableOpacity
-                style={[
-                  styles.navItem,
-                  isActive && {
-                    backgroundColor: colors.sidebarActive,
-                  },
-                ]}
+                style={navItemStyle}
                 activeOpacity={0.8}
                 accessibilityRole="link"
                 accessibilityLabel={item.name}

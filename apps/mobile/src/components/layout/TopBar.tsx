@@ -74,13 +74,13 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
 
         <Link href="/account" asChild>
           <TouchableOpacity
-            style={[
+            style={StyleSheet.flatten([
               styles.avatarButton,
               {
                 backgroundColor: colors.surfaceMuted,
                 borderColor: colors.borderSubtle,
               },
-            ]}
+            ])}
             accessibilityRole="button"
             accessibilityLabel="My Account"
           >
