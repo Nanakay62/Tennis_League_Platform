@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../theme/colors";
 import { fetchCurrentUser, UserSession } from "../../lib/auth";
+import { getPlayerAvatar } from "../../constants/mockImages";
 
 export interface TopBarProps {
   showBack?: boolean;
@@ -77,20 +78,16 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
             style={StyleSheet.flatten([
               styles.avatarButton,
               {
-                backgroundColor: colors.surfaceMuted,
                 borderColor: colors.borderSubtle,
               },
             ])}
             accessibilityRole="button"
             accessibilityLabel="My Account"
           >
-            {user?.displayName ? (
-              <Text style={[styles.avatarText, { color: colors.textPrimary }]}>
-                {user.displayName.charAt(0).toUpperCase()}
-              </Text>
-            ) : (
-              <Feather name="user" size={16} color={colors.textSecondary} />
-            )}
+            <Image
+              source={getPlayerAvatar(user?.displayName || "Maximilian Weber")}
+              style={styles.avatarImage}
+            />
           </TouchableOpacity>
         </Link>
       </View>
@@ -162,8 +159,14 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     borderWidth: 1,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   avatarText: {
     fontSize: 13,

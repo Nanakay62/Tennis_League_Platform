@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -12,6 +13,7 @@ import { useThemeColors } from "../../theme/colors";
 import { useResponsive } from "../../theme/tokens";
 import { StandingRow } from "../../api/client";
 import { Badge } from "./Badge";
+import { getPlayerAvatar } from "../../constants/mockImages";
 
 export interface StandingsTableProps {
   standings: StandingRow[];
@@ -114,6 +116,10 @@ export function StandingsTable({
                 </Text>
 
                 <View style={[styles.colPlayer, styles.playerCell]}>
+                  <Image
+                    source={getPlayerAvatar(row.playerName)}
+                    style={styles.tableAvatar}
+                  />
                   <Text
                     style={[styles.tdName, { color: colors.textPrimary }]}
                     numberOfLines={1}
@@ -193,6 +199,11 @@ export function StandingsTable({
                       {row.rank}
                     </Text>
                   </View>
+
+                  <Image
+                    source={getPlayerAvatar(row.playerName)}
+                    style={styles.cardAvatar}
+                  />
 
                   <View style={styles.cardPlayerInfo}>
                     <View style={styles.playerNameRow}>
@@ -513,5 +524,17 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  tableAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    marginRight: 8,
+  },
+  cardAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
   },
 });

@@ -3,21 +3,26 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Image,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { colors } from "../../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../../src/theme/colors";
 import {
   getPOTYLeaderboard,
   getReferralInfo,
   POTYItem,
 } from "../../src/api/client";
+import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
+import { getPlayerAvatar } from "../../src/constants/mockImages";
 
 export default function POTYLeaderboardScreen() {
+  const { colors, isDark } = useThemeColors();
+
   const {
     data: leaderboard,
     isLoading,
@@ -49,57 +54,85 @@ export default function POTYLeaderboardScreen() {
   const rest = leaderboard?.slice(3) || [];
 
   const renderItem = ({ item }: { item: POTYItem }) => (
-    <View
-      style={styles.rowCard}
-      accessible={true}
-      accessibilityRole="summary"
-      accessibilityLabel={`Rank ${item.rank}: ${item.display_name}, ${item.total_points} points, ${item.matches_played} matches played in ${item.home_area || "Frankfurt"}`}
-    >
-      <Text style={styles.rankNum}>#{item.rank}</Text>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={styles.playerName}>{item.display_name}</Text>
-        <Text style={styles.playerMeta}>
-          📍 {item.home_area || "Frankfurt"} • {item.matches_played} matches ({item.matches_won}W)
+    <Card style={styles.rowCard}>
+      <View style={styles.rankBadge}>
+        <Text style={[styles.rankNum, { color: colors.textSecondary }]}>
+          #{item.rank}
         </Text>
       </View>
-      <View style={styles.pointsBadge}>
-        <Text style={styles.pointsText}>{item.total_points}</Text>
-        <Text style={styles.pointsLabel}>pts</Text>
+
+      <Image
+        source={getPlayerAvatar(item.display_name)}
+        style={styles.playerAvatar}
+      />
+
+      <View style={{ flex: 1, marginLeft: 10 }}>
+        <Text style={[styles.playerName, { color: colors.textPrimary }]}>
+          {item.display_name}
+        </Text>
+        <View style={styles.metaRow}>
+          <Feather
+            name="map-pin"
+            size={11}
+            color={colors.textSecondary}
+            style={{ marginRight: 3 }}
+          />
+          <Text style={[styles.playerMeta, { color: colors.textSecondary }]}>
+            {item.home_area || "Frankfurt"} • {item.matches_played} matches ({item.matches_won}W)
+          </Text>
+        </View>
       </View>
-    </View>
+
+      <Badge
+        variant="accent"
+        label={`${item.total_points} pts`}
+      />
+    </Card>
   );
 
   return (
-    <View style={styles.container}>
-      {/* Referral Share Card */}
-      {referral && (
-        <View style={styles.referralCard}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={styles.refTitle}>Invite Friends & Earn €5.00</Text>
-            <Text style={styles.refSub}>
-              Share code <Text style={styles.refCode}>{referral.referral_code}</Text> — you both get €5 off!
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.copyBtn}
-            onPress={copyReferral}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Copy Referral Link"
-            accessibilityHint="Copies your personal referral link and code to the clipboard"
-          >
-            <Text style={styles.copyBtnText}>Copy Link</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Header Info */}
+    <AppShell title="COMMUNITY">
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Player of the Year (POTY)</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Player of the Year (POTY)
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Points: 10 per match played • 5 per win • 5 per unique opponent
         </Text>
       </View>
+
+      {/* Referral Share Card */}
+      {referral && (
+        <Card
+          style={[
+            styles.referralCard,
+            { backgroundColor: isDark ? colors.surfaceSecondary : "#fdfbf7" },
+          ]}
+        >
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <View style={styles.referralHeader}>
+              <Feather name="gift" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={[styles.refTitle, { color: colors.textPrimary }]}>
+                Invite Friends & Earn €5.00
+              </Text>
+            </View>
+            <Text style={[styles.refSub, { color: colors.textSecondary }]}>
+              Share code <Text style={[styles.refCode, { color: colors.primary }]}>{referral.referral_code}</Text> — you both get €5 off!
+            </Text>
+          </View>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="copy"
+            onPress={copyReferral}
+            accessibilityLabel="Copy Referral Link"
+          >
+            Copy Link
+          </Button>
+        </Card>
+      )}
 
       {/* Podium for Top 3 */}
       {top3.length > 0 && (
@@ -107,54 +140,117 @@ export default function POTYLeaderboardScreen() {
           {/* 2nd Place */}
           {top3[1] && (
             <View style={[styles.podiumCol, { marginTop: 24 }]}>
-              <Text style={styles.podiumMedal}>🥈</Text>
-              <Text style={styles.podiumName} numberOfLines={1}>
+              <Badge variant="neutral" icon="award" label="2nd" size="sm" />
+              <Image
+                source={getPlayerAvatar(top3[1].display_name)}
+                style={styles.podiumAvatar}
+              />
+              <Text
+                style={[styles.podiumName, { color: colors.textPrimary }]}
+                numberOfLines={1}
+              >
                 {top3[1].display_name}
               </Text>
-              <Text style={styles.podiumPts}>{top3[1].total_points} pts</Text>
-              <View style={[styles.podiumBar, { height: 60, backgroundColor: "#cfd8dc" }]} />
+              <Text style={[styles.podiumPts, { color: colors.textSecondary }]}>
+                {top3[1].total_points} pts
+              </Text>
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    height: 60,
+                    backgroundColor: colors.surfaceMuted,
+                    borderColor: colors.borderSubtle,
+                  },
+                ]}
+              />
             </View>
           )}
 
           {/* 1st Place */}
           {top3[0] && (
             <View style={styles.podiumCol}>
-              <Text style={styles.podiumMedal}>👑</Text>
-              <Text style={[styles.podiumName, { fontWeight: "800" }]} numberOfLines={1}>
+              <Badge variant="warning" icon="award" label="Champion" size="sm" />
+              <Image
+                source={getPlayerAvatar(top3[0].display_name)}
+                style={[styles.podiumAvatar, styles.championAvatar, { borderColor: colors.primary }]}
+              />
+              <Text
+                style={[styles.podiumName, { color: colors.textPrimary, fontWeight: "800" }]}
+                numberOfLines={1}
+              >
                 {top3[0].display_name}
               </Text>
-              <Text style={[styles.podiumPts, { color: colors.primary }]}>
+              <Text style={[styles.podiumPts, { color: colors.primary, fontWeight: "700" }]}>
                 {top3[0].total_points} pts
               </Text>
-              <View style={[styles.podiumBar, { height: 90, backgroundColor: colors.primary }]} />
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    height: 90,
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  },
+                ]}
+              />
             </View>
           )}
 
           {/* 3rd Place */}
           {top3[2] && (
             <View style={[styles.podiumCol, { marginTop: 36 }]}>
-              <Text style={styles.podiumMedal}>🥉</Text>
-              <Text style={styles.podiumName} numberOfLines={1}>
+              <Badge variant="neutral" icon="award" label="3rd" size="sm" />
+              <Image
+                source={getPlayerAvatar(top3[2].display_name)}
+                style={styles.podiumAvatar}
+              />
+              <Text
+                style={[styles.podiumName, { color: colors.textPrimary }]}
+                numberOfLines={1}
+              >
                 {top3[2].display_name}
               </Text>
-              <Text style={styles.podiumPts}>{top3[2].total_points} pts</Text>
-              <View style={[styles.podiumBar, { height: 45, backgroundColor: "#d7ccc8" }]} />
+              <Text style={[styles.podiumPts, { color: colors.textSecondary }]}>
+                {top3[2].total_points} pts
+              </Text>
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    height: 45,
+                    backgroundColor: colors.surfaceMuted,
+                    borderColor: colors.borderSubtle,
+                  },
+                ]}
+              />
             </View>
           )}
         </View>
       )}
 
+      {/* Full Leaderboard List */}
       {isLoading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading POTY standings...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading POTY standings...
+          </Text>
         </View>
       ) : isError ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Unable to load POTY leaderboard.</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
+          <Feather
+            name="alert-circle"
+            size={36}
+            color={colors.danger}
+            style={{ marginBottom: 12 }}
+          />
+          <Text style={[styles.errorText, { color: colors.danger }]}>
+            Unable to load POTY leaderboard.
+          </Text>
+          <Button variant="secondary" size="sm" onPress={() => refetch()}>
+            Retry
+          </Button>
         </View>
       ) : (
         <FlatList
@@ -162,6 +258,7 @@ export default function POTYLeaderboardScreen() {
           keyExtractor={(item) => item.player_id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -171,197 +268,141 @@ export default function POTYLeaderboardScreen() {
           }
           ListEmptyComponent={
             top3.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>🏆</Text>
-                <Text style={styles.emptyTitle}>Season leaderboard opening</Text>
-                <Text style={styles.emptySubtitle}>Play verified matches to earn points!</Text>
-              </View>
+              <EmptyState
+                icon="award"
+                title="No POTY rankings yet"
+                message="Play matches this season to earn points and climb the leaderboard."
+              />
             ) : null
           }
         />
       )}
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
   },
   referralCard: {
-    backgroundColor: "#fffde7",
-    borderBottomWidth: 1,
-    borderBottomColor: "#fff59d",
-    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    padding: 16,
+    marginBottom: 16,
+  },
+  referralHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
   },
   refTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#f57f17",
   },
   refSub: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
+    fontSize: 13,
   },
   refCode: {
-    fontWeight: "700",
-    color: colors.text,
-  },
-  copyBtn: {
-    backgroundColor: "#fbc02d",
-    minHeight: 44,
-    minWidth: 44,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  copyBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#212121",
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
+    fontWeight: "800",
   },
   podiumContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "flex-end",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 16,
+    marginBottom: 20,
+    gap: 12,
   },
   podiumCol: {
     flex: 1,
+    maxWidth: 130,
     alignItems: "center",
   },
-  podiumMedal: {
-    fontSize: 26,
-    marginBottom: 4,
+  podiumAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginVertical: 8,
+  },
+  championAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
   },
   podiumName: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.text,
     textAlign: "center",
+    marginBottom: 2,
   },
   podiumPts: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textSecondary,
+    fontSize: 12,
     marginBottom: 8,
   },
   podiumBar: {
-    width: "80%",
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
+    width: "100%",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderWidth: 1,
   },
   listContent: {
-    padding: 16,
     paddingBottom: 32,
+    gap: 8,
   },
   rowCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: 12,
-    marginBottom: 8,
+  },
+  rankBadge: {
+    width: 32,
+    alignItems: "center",
   },
   rankNum: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.textSecondary,
-    width: 32,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  playerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   playerName: {
     fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
+    fontWeight: "700",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
   },
   playerMeta: {
     fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  pointsBadge: {
-    alignItems: "flex-end",
-  },
-  pointsText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  pointsLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
-    fontWeight: "600",
   },
   centerContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 40,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
   },
   errorText: {
     fontSize: 14,
-    color: colors.danger,
-    marginBottom: 10,
-  },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  retryBtnText: {
-    color: "#fff",
     fontWeight: "600",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    paddingTop: 50,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
+    marginBottom: 12,
   },
 });

@@ -27,19 +27,13 @@ export default function RootLayout() {
         <OfflineBanner />
         <Stack
           screenOptions={{
-            headerStyle: {
-              backgroundColor: themeColors.primary,
-            },
-            headerTintColor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "700",
-            },
+            headerShown: false,
             contentStyle: {
               backgroundColor: themeColors.background,
             },
           }}
         >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="index" />
           <Stack.Screen name="programs/index" options={{ title: "Programs" }} />
           <Stack.Screen name="programs/[programId]" options={{ title: "Select Division" }} />
           <Stack.Screen name="divisions/[divisionId]" options={{ title: "Division" }} />

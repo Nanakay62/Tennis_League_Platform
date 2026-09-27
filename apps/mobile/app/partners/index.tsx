@@ -3,18 +3,22 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
   Linking,
+  Image,
 } from "react-native";
-import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { colors } from "../../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../../src/theme/colors";
 import { getCompatiblePartners, PartnerMatch } from "../../src/api/client";
+import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
+import { getPlayerAvatar } from "../../src/constants/mockImages";
 
 export default function PartnerProgramScreen() {
+  const { colors, isDark } = useThemeColors();
+
   const {
     data: partners,
     isLoading,
@@ -35,85 +39,136 @@ export default function PartnerProgramScreen() {
   };
 
   const renderItem = ({ item }: { item: PartnerMatch }) => (
-    <View style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
+        <Image
+          source={getPlayerAvatar(item.display_name)}
+          style={styles.avatar}
+        />
+
+        <View style={{ flex: 1, marginLeft: 12 }}>
           <View style={styles.nameRow}>
-            <Text style={styles.partnerName}>{item.display_name}</Text>
-            {item.is_daytime && <Text style={styles.daytimeFlag}>☀️ Daytime</Text>}
+            <Text style={[styles.partnerName, { color: colors.textPrimary }]}>
+              {item.display_name}
+            </Text>
+            {item.is_daytime && (
+              <Badge variant="neutral" icon="sun" size="sm" label="Daytime" />
+            )}
           </View>
-          <Text style={styles.partnerMeta}>
-            📍 {item.home_area || "Frankfurt"} • Rating: {item.rating || "3.5"}
-          </Text>
+
+          <View style={styles.metaRow}>
+            <Feather
+              name="map-pin"
+              size={12}
+              color={colors.textSecondary}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={[styles.partnerMeta, { color: colors.textSecondary }]}>
+              {item.home_area || "Frankfurt"}
+            </Text>
+            <Badge
+              variant="accent"
+              size="sm"
+              label={`NTRP ${item.rating || "3.5"}`}
+              style={{ marginLeft: 8 }}
+            />
+          </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.challengeBtn}
-          onPress={() => router.push(`/scores/submit?opponentId=${item.player_id}`)}
+        <Button
+          size="sm"
+          variant="primary"
+          href={`/scores/submit?opponentId=${item.player_id}`}
         >
-          <Text style={styles.challengeBtnText}>Report Score</Text>
-        </TouchableOpacity>
+          Report Score
+        </Button>
       </View>
 
-      <View style={styles.contactRow}>
+      {/* Contact Options */}
+      <View style={[styles.contactRow, { borderTopColor: colors.borderSubtle }]}>
         {item.phone ? (
-          <TouchableOpacity
-            style={styles.contactBtn}
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="phone"
             onPress={() => handleCall(item.phone)}
-            accessible={true}
-            accessibilityRole="link"
             accessibilityLabel={`Call partner ${item.display_name} at ${item.phone}`}
           >
-            <Text style={styles.contactBtnText}>📞 {item.phone}</Text>
-          </TouchableOpacity>
+            {item.phone}
+          </Button>
         ) : null}
 
         {item.email ? (
-          <TouchableOpacity
-            style={styles.contactBtn}
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="mail"
             onPress={() => handleEmail(item.email)}
-            accessible={true}
-            accessibilityRole="link"
             accessibilityLabel={`Email partner ${item.display_name} at ${item.email}`}
           >
-            <Text style={styles.contactBtnText}>✉️ {item.email}</Text>
-          </TouchableOpacity>
+            {item.email}
+          </Button>
         ) : null}
       </View>
-    </View>
+    </Card>
   );
 
   return (
-    <View style={styles.container}>
-      {/* Reward Promo Banner */}
-      <View style={styles.promoBanner}>
-        <Text style={styles.promoIcon}>🎁</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.promoTitle}>Monthly Partner Reward (€5.00 Credit)</Text>
-          <Text style={styles.promoDesc}>
-            Play matches with at least 3 distinct partners in a calendar month to receive a €5.00 discount voucher towards your next season!
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Compatible Hitting Partners</Text>
-        <Text style={styles.sectionSubtitle}>
+    <AppShell title="COMMUNITY">
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Practice Partners
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Matched within ±0.5 NTRP in your Frankfurt area.
         </Text>
       </View>
 
+      {/* Reward Promo Banner */}
+      <Card
+        style={[
+          styles.promoBanner,
+          { backgroundColor: isDark ? colors.surfaceSecondary : "#fdfbf7" },
+        ]}
+      >
+        <Feather
+          name="gift"
+          size={20}
+          color={colors.primary}
+          style={{ marginRight: 12, marginTop: 2 }}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.promoTitle, { color: colors.textPrimary }]}>
+            Monthly Partner Reward (€5.00 Credit)
+          </Text>
+          <Text style={[styles.promoDesc, { color: colors.textSecondary }]}>
+            Play matches with at least 3 distinct partners in a calendar month to receive a €5.00 discount voucher towards your next season!
+          </Text>
+        </View>
+      </Card>
+
       {isLoading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Finding hitting partners...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Finding hitting partners...
+          </Text>
         </View>
       ) : isError ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Unable to load partner suggestions.</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
+          <Feather
+            name="alert-circle"
+            size={36}
+            color={colors.danger}
+            style={{ marginBottom: 12 }}
+          />
+          <Text style={[styles.errorText, { color: colors.danger }]}>
+            Unable to load partner suggestions.
+          </Text>
+          <Button variant="secondary" size="sm" onPress={() => refetch()}>
+            Retry
+          </Button>
         </View>
       ) : (
         <FlatList
@@ -121,6 +176,7 @@ export default function PartnerProgramScreen() {
           keyExtractor={(item) => item.player_id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -129,191 +185,99 @@ export default function PartnerProgramScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🎾</Text>
-              <Text style={styles.emptyTitle}>No partners found in this band</Text>
-              <Text style={styles.emptySubtitle}>
-                More players in Frankfurt are joining weekly!
-              </Text>
-            </View>
+            <EmptyState
+              icon="users"
+              title="No partners found in this band"
+              message="More players in Frankfurt are joining weekly!"
+            />
           }
         />
       )}
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
   },
   promoBanner: {
-    backgroundColor: "#e8f5e9",
-    borderBottomWidth: 1,
-    borderBottomColor: "#c8e6c9",
-    padding: 16,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  promoIcon: {
-    fontSize: 28,
+    alignItems: "flex-start",
+    padding: 16,
+    marginBottom: 20,
   },
   promoTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    color: colors.primary,
+    marginBottom: 4,
   },
   promoDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  sectionHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  sectionSubtitle: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
+    lineHeight: 18,
   },
   listContent: {
-    padding: 16,
     paddingBottom: 32,
+    gap: 12,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   partnerName: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.text,
   },
-  daytimeFlag: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#e65100",
-    backgroundColor: "#fff3e0",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
   },
   partnerMeta: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 3,
-  },
-  challengeBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  challengeBtnText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
   },
   contactRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.surfaceSecondary,
-    paddingTop: 10,
-  },
-  contactBtn: {
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 44,
-    minWidth: 44,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  contactBtnText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: "500",
+    paddingTop: 12,
   },
   centerContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 40,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
   },
   errorText: {
     fontSize: 14,
-    color: colors.danger,
-    marginBottom: 10,
-  },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  retryBtnText: {
-    color: "#fff",
     fontWeight: "600",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    paddingTop: 50,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
+    marginBottom: 12,
   },
 });

@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
+  useWindowDimensions,
 } from "react-native";
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -27,9 +29,13 @@ import {
   Badge,
   StandingsTable,
 } from "../src/components";
+import { MOCK_IMAGES, getPlayerAvatar } from "../src/constants/mockImages";
 
 export default function HomeScreen() {
-  const { colors } = useThemeColors();
+  const { colors, isDark } = useThemeColors();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
+
   const [user, setUser] = useState<UserSession | null>(null);
   const [roster, setRoster] = useState<RosterPlayerResponse[]>([]);
   const [standings, setStandings] = useState<StandingRow[]>([]);
@@ -50,7 +56,7 @@ export default function HomeScreen() {
         setUser(userData);
         setRoster(rosterRes.players || []);
         setStandings(standingsData || []);
-        setRecentScores((scoresData || []).slice(0, 3));
+        setRecentScores((scoresData || []).slice(0, 2));
       } catch (err) {
         console.warn("Failed to load dashboard data:", err);
       } finally {
@@ -68,6 +74,9 @@ export default function HomeScreen() {
     roster[0] ||
     null;
 
+  const opponentName = opponent ? opponent.display_name : "Lukas Schmidt";
+  const userName = user?.displayName || "Maximilian Weber";
+
   // Top 3 for compact preview
   const topStandings = standings.slice(0, 3);
 
@@ -83,25 +92,48 @@ export default function HomeScreen() {
 
   return (
     <AppShell>
-      {/* Greeting Header */}
+      {/* 1. Greeting Header */}
       <View style={styles.greetingSection}>
         <View style={styles.greetingCol}>
           <Text style={[styles.greetingHeadline, { color: colors.textPrimary }]}>
-            {user?.displayName ? `Welcome back, ${user.displayName}` : "Frankfurt Tennis League"}
+            Good evening, {userName.split(" ")[0]}
           </Text>
           <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>
             Competitive 3.5 • Fall Season 2026
           </Text>
         </View>
-        <View style={styles.marketBadge}>
-          <Feather name="map-pin" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+
+        <View
+          style={[
+            styles.marketBadge,
+            {
+              backgroundColor: colors.surfaceMuted,
+              borderColor: colors.borderSubtle,
+            },
+          ]}
+        >
+          <Feather
+            name="map-pin"
+            size={12}
+            color={colors.textSecondary}
+            style={{ marginRight: 4 }}
+          />
           <Text style={[styles.marketText, { color: colors.textSecondary }]}>
             Frankfurt, Germany
+          </Text>
+          <Feather
+            name="sun"
+            size={12}
+            color="#eab308"
+            style={{ marginLeft: 8, marginRight: 4 }}
+          />
+          <Text style={[styles.marketText, { color: colors.textSecondary }]}>
+            18°C
           </Text>
         </View>
       </View>
 
-      {/* 1. Hero Card: Your Next Match (Flat surface, no stock photography - Constraint #1) */}
+      {/* 2. Hero Card: Next Match (With Mock Tennis Ball Image matching reference redesign) */}
       <Card
         style={[
           styles.heroCard,
@@ -111,81 +143,206 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <View style={styles.heroTopRow}>
-          <Badge label="NEXT MATCH • ROUND 3" variant="accent" icon="calendar" />
-          <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
-        </View>
+        <View style={styles.heroLayout}>
+          {/* Left Details Column */}
+          <View style={styles.heroDetailsCol}>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroBadgeRow}>
+                <Feather
+                  name="calendar"
+                  size={14}
+                  color={colors.primary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroNextMatchText, { color: colors.textPrimary }]}>
+                  Next Match
+                </Text>
+                <Badge label="Round 3" variant="neutral" size="sm" style={{ marginLeft: 8 }} />
+              </View>
+              <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
+            </View>
 
-        <Text
-          style={[styles.heroOpponentTitle, { color: colors.textPrimary }]}
-          numberOfLines={2}
-        >
-          vs. {opponent ? opponent.display_name : "Maximilian Weber"}
-        </Text>
+            {/* Players Faceoff */}
+            <View style={styles.playersFaceoff}>
+              {/* Player 1 (User) */}
+              <View style={styles.playerBlock}>
+                <View style={styles.avatarWrapper}>
+                  <Image source={MOCK_IMAGES.avatars.max} style={styles.heroAvatar} />
+                  <View style={styles.youBadge}>
+                    <Text style={styles.youBadgeText}>YOU</Text>
+                  </View>
+                </View>
+                <Text
+                  style={[styles.heroPlayerName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {userName}
+                </Text>
+                <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
+                  Competitive 3.5
+                </Text>
+              </View>
 
-        {/* Match details with flex wrap for realistic longer data (Constraint #2) */}
-        <View style={styles.heroMetaWrap}>
-          <View style={styles.heroMetaItem}>
-            <Feather name="clock" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
-            <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-              Thursday, Oct 8 • 18:00 CEST
-            </Text>
+              {/* VS Marker */}
+              <View style={styles.vsContainer}>
+                <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
+              </View>
+
+              {/* Player 2 (Opponent) */}
+              <View style={styles.playerBlock}>
+                <Image
+                  source={getPlayerAvatar(opponentName)}
+                  style={styles.heroAvatar}
+                />
+                <Text
+                  style={[styles.heroPlayerName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {opponentName}
+                </Text>
+                <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
+                  Competitive 3.5
+                </Text>
+              </View>
+            </View>
+
+            {/* Match Metadata Row */}
+            <View style={styles.heroMetaWrap}>
+              <View style={styles.heroMetaItem}>
+                <Feather
+                  name="clock"
+                  size={13}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                  Thu, Oct 8 • 18:00
+                </Text>
+              </View>
+              <View style={styles.heroMetaItem}>
+                <Feather
+                  name="map-pin"
+                  size={13}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                  TC Palmengarten
+                </Text>
+              </View>
+              <View style={styles.heroMetaItem}>
+                <Feather
+                  name="grid"
+                  size={13}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                  Clay Court 4
+                </Text>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.heroActionsRow}>
+              <Button
+                variant="primary"
+                size="md"
+                href="/divisions/div-comp-1"
+                icon="check-circle"
+                style={styles.heroActionBtn}
+              >
+                Confirm Match Details
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="md"
+                href="/scores/submit"
+                icon="edit-3"
+                style={styles.heroActionBtn}
+              >
+                Report Score
+              </Button>
+            </View>
           </View>
-          <View style={styles.heroMetaItem}>
-            <Feather name="map-pin" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
-            <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-              TC Palmengarten (Clay Court 4)
-            </Text>
-          </View>
-        </View>
 
-        {/* Primary and secondary action buttons */}
-        <View style={styles.heroActionsRow}>
-          <Button
-            variant="primary"
-            size="md"
-            href="/divisions/div-comp-1"
-            icon="check-circle"
-            style={styles.heroActionBtn}
-          >
-            Confirm Availability
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="md"
-            href="/scores/submit"
-            icon="edit-3"
-            style={styles.heroActionBtn}
-          >
-            Report Score
-          </Button>
+          {/* Right Image Column: High Quality Mock Tennis Ball on Clay */}
+          {isDesktop && (
+            <View style={styles.heroImageCol}>
+              <Image
+                source={MOCK_IMAGES.heroTennisBall}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+            </View>
+          )}
         </View>
       </Card>
 
-      {/* 2. Your Season Stat Metrics */}
-      <View style={styles.metricsRow}>
-        <MetricCard label="Position" value={currentRank} />
-        <MetricCard label="Record" value={currentRecord} />
-        <MetricCard label="Games Won" value={currentPct} />
-        <MetricCard
-          label="Wins Needed"
-          value={`${winsCount} / 5`}
-          progress={{
-            current: winsCount,
-            total: 5,
-            label: `${Math.max(5 - winsCount, 0)} wins to qualify`,
-          }}
-        />
-      </View>
+      {/* 3. Your Season Stat Metrics & Progress */}
+      <Card style={styles.seasonCard}>
+        <View style={styles.seasonHeaderRow}>
+          <View style={styles.seasonTitleRow}>
+            <Feather
+              name="award"
+              size={16}
+              color={colors.primary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.seasonTitle, { color: colors.textPrimary }]}>
+              Your Season
+            </Text>
+          </View>
+        </View>
 
-      {/* 3. Two Columns: Compact Standings Preview + Dense Quick Actions */}
+        <View style={styles.metricsRow}>
+          <MetricCard label="Position" value={currentRank} />
+          <MetricCard label="Record" value={currentRecord} />
+          <MetricCard label="Games Won" value={currentPct} />
+          <MetricCard label="Wins Needed" value={`${winsCount} / 5`} />
+        </View>
+
+        {/* Playoff Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressTextRow}>
+            <Feather
+              name="check-circle"
+              size={13}
+              color={colors.primary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+              {Math.max(5 - winsCount, 0)} matches until playoff eligibility
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.progressBarBg,
+              { backgroundColor: colors.surfaceMuted },
+            ]}
+          >
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: `${Math.min((winsCount / 5) * 100, 100)}%`,
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      </Card>
+
+      {/* 4. Two Columns Layout: Left (Standings + Results) & Right (Quick Actions + Next Season) */}
       <View style={styles.columnsContainer}>
-        {/* Left Column: Compact Standings */}
+        {/* Left Column */}
         <View style={styles.columnLeft}>
+          {/* Standings Preview */}
           <Card
-            title="Competitive 3.5 Division"
-            actionLink={{ label: "Full Table →", href: "/divisions/div-comp-1" }}
+            title="Standings"
+            actionLink={{ label: "View All →", href: "/divisions/div-comp-1" }}
             noPadding
           >
             <StandingsTable
@@ -197,136 +354,193 @@ export default function HomeScreen() {
               showLegend={false}
             />
           </Card>
+
+          {/* Recent League Results */}
+          <Card
+            title="Recent Results"
+            actionLink={{ label: "View All →", href: "/scores" }}
+            noPadding
+            style={{ marginTop: 16 }}
+          >
+            {loading ? (
+              <View style={styles.loadingFeed}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : recentScores.length > 0 ? (
+              <View style={isDesktop ? styles.resultsGrid : styles.resultsStack}>
+                {recentScores.map((match, idx) => {
+                  const isLast = idx === recentScores.length - 1;
+
+                  return (
+                    <View
+                      key={match.id || idx}
+                      style={[
+                        styles.resultCard,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.borderSubtle,
+                        },
+                      ]}
+                    >
+                      <View style={styles.resultHeader}>
+                        <Badge label="CONFIRMED" variant="success" size="sm" />
+                        <Text style={[styles.resultDate, { color: colors.textSecondary }]}>
+                          Oct 4, 2026
+                        </Text>
+                      </View>
+
+                      {/* Winner Row */}
+                      <View style={styles.resultPlayerRow}>
+                        <Image
+                          source={getPlayerAvatar(match.winner_name)}
+                          style={styles.resultAvatar}
+                        />
+                        <Text
+                          style={[styles.resultWinnerName, { color: colors.textPrimary }]}
+                          numberOfLines={1}
+                        >
+                          {match.winner_name}
+                        </Text>
+                        <Text
+                          style={[styles.resultScoreValue, { color: colors.textPrimary }]}
+                        >
+                          {match.score_line}
+                        </Text>
+                      </View>
+
+                      {/* Loser Row */}
+                      <View style={styles.resultPlayerRow}>
+                        <Image
+                          source={getPlayerAvatar(match.loser_name)}
+                          style={styles.resultAvatar}
+                        />
+                        <Text
+                          style={[styles.resultLoserName, { color: colors.textSecondary }]}
+                          numberOfLines={1}
+                        >
+                          {match.loser_name}
+                        </Text>
+                      </View>
+
+                      {/* Division Meta */}
+                      <Text style={[styles.resultMeta, { color: colors.textMuted }]}>
+                        {match.division_name} • Clay Court
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.loadingFeed}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  No recent scores recorded.
+                </Text>
+              </View>
+            )}
+          </Card>
         </View>
 
-        {/* Right Column: Dense Quick Actions */}
+        {/* Right Column */}
         <View style={styles.columnRight}>
+          {/* Quick Actions Card */}
           <Card title="Quick Actions" noPadding>
             <ListRow
               icon="edit-3"
               title="Report Match Score"
-              subtitle="Submit sets for opponent confirmation"
+              subtitle="Confirm or submit your latest result"
               href="/scores/submit"
             />
             <ListRow
               icon="users"
-              title="Practice Partners"
-              subtitle="Find local players by NTRP rating"
+              title="Find a Practice Partner"
+              subtitle="Players near Frankfurt • 3.5"
               href="/partners"
             />
             <ListRow
               icon="map-pin"
-              title="Frankfurt Courts"
-              subtitle="Directory, surfaces & booking"
+              title="Browse Courts"
+              subtitle="View courts, book and get directions"
               href="/courts"
             />
-            <ListRow
-              icon="award"
-              title="Player of the Year"
-              subtitle="Leaderboard & community awards"
-              href="/community/poty"
-            />
-            <ListRow
-              icon="calendar"
-              title="Browse Programs"
-              subtitle="Fall Season 2026 flex divisions"
-              href="/programs"
-              isLast
-            />
-          </Card>
-        </View>
-      </View>
 
-      {/* 4. Slim, Lower-Emphasis Banner Row for Join Today (Shown only to guest/un-enrolled users) */}
-      {!user && (
-        <View
-          style={[
-            styles.enrollmentBanner,
-            {
-              backgroundColor: colors.surfaceSubtle,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.enrollmentTextCol}>
-            <View style={styles.bannerTagRow}>
-              <Feather name="calendar" size={13} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.enrollmentHeadline, { color: colors.primary }]}>
-                Fall Season 2026 Open for Registration
-              </Text>
+            {/* Shortcut Tiles Row */}
+            <View
+              style={[
+                styles.shortcutRow,
+                { borderTopColor: colors.borderSubtle, borderTopWidth: 1 },
+              ]}
+            >
+              <Link href="/programs" asChild>
+                <TouchableOpacity style={styles.shortcutBtn}>
+                  <Feather name="calendar" size={18} color={colors.primary} />
+                  <Text style={[styles.shortcutText, { color: colors.textSecondary }]}>
+                    Programs
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+              <Link href="/community/poty" asChild>
+                <TouchableOpacity style={styles.shortcutBtn}>
+                  <Feather name="users" size={18} color={colors.primary} />
+                  <Text style={[styles.shortcutText, { color: colors.textSecondary }]}>
+                    Community
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+              <Link href="/account" asChild>
+                <TouchableOpacity style={styles.shortcutBtn}>
+                  <Feather name="grid" size={18} color={colors.primary} />
+                  <Text style={[styles.shortcutText, { color: colors.textSecondary }]}>
+                    More
+                  </Text>
+                </TouchableOpacity>
+              </Link>
             </View>
-            <Text style={[styles.enrollmentSub, { color: colors.textSecondary }]}>
-              Join competitive flex singles across Frankfurt courts • €34.95
-            </Text>
-          </View>
+          </Card>
 
-          <Button
-            variant="primary"
-            size="sm"
-            href="/join"
-            iconRight="arrow-right"
-          >
-            Join Today
-          </Button>
-        </View>
-      )}
+          {/* Next Season Promo Card (With Mock Court Net Image) */}
+          <View style={styles.promoCardContainer}>
+            <View style={styles.promoImageWrapper}>
+              <Image
+                source={MOCK_IMAGES.seasonCourtNet}
+                style={styles.promoBackgroundImage}
+                resizeMode="cover"
+              />
+              <View style={styles.promoOverlay} />
+            </View>
 
-      {/* 5. Recent League Results (Fixed layout preventing collision with longer names - Constraint #2) */}
-      <Card
-        title="Recent League Results"
-        actionLink={{ label: "View all results →", href: "/scores" }}
-        noPadding
-      >
-        {loading ? (
-          <View style={styles.loadingFeed}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : recentScores.length > 0 ? (
-          recentScores.map((match, idx) => {
-            const isLast = idx === recentScores.length - 1;
+            <View style={styles.promoContent}>
+              <Text style={styles.promoTag}>NEXT SEASON</Text>
+              <Text style={styles.promoTitle}>Fall Season 2026</Text>
+              <Text style={styles.promoSubtitle}>Open for enrollment</Text>
 
-            return (
-              <View
-                key={match.id || idx}
-                style={[
-                  styles.resultRow,
-                  !isLast && { borderBottomColor: colors.borderSubtle, borderBottomWidth: 1 },
-                ]}
-              >
-                <View style={styles.resultMatchupCol}>
-                  <Text
-                    style={[styles.resultMatchupText, { color: colors.textPrimary }]}
-                    numberOfLines={2}
-                  >
-                    <Text style={styles.resultWinner}>{match.winner_name}</Text>
-                    <Text style={[styles.resultVs, { color: colors.textMuted }]}> def. </Text>
-                    <Text style={styles.resultLoser}>{match.loser_name}</Text>
-                  </Text>
-                  <Text style={[styles.resultDivisionText, { color: colors.textSecondary }]}>
-                    {match.division_name}
-                  </Text>
+              <View style={styles.promoPillsRow}>
+                <View style={styles.promoPill}>
+                  <Text style={styles.promoPillText}>Competitive</Text>
                 </View>
-
-                <View style={styles.resultScoreCol}>
-                  <Text
-                    style={[styles.resultScoreLine, { color: colors.textPrimary }]}
-                    numberOfLines={1}
-                  >
-                    {match.score_line}
-                  </Text>
-                  <Badge label="Confirmed" variant="success" size="sm" />
+                <View style={styles.promoPill}>
+                  <Text style={styles.promoPillText}>Skilled</Text>
+                </View>
+                <View style={styles.promoPill}>
+                  <Text style={styles.promoPillText}>Advanced</Text>
                 </View>
               </View>
-            );
-          })
-        ) : (
-          <View style={styles.loadingFeed}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No recent scores recorded.
-            </Text>
+
+              <View style={styles.promoBottomRow}>
+                <Text style={styles.promoPrice}>€34.95</Text>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  href="/join"
+                  iconRight="arrow-right"
+                  style={styles.promoJoinBtn}
+                >
+                  Join Now
+                </Button>
+              </View>
+            </View>
           </View>
-        )}
-      </Card>
+        </View>
+      </View>
     </AppShell>
   );
 }
@@ -345,9 +559,9 @@ const styles = StyleSheet.create({
     minWidth: 240,
   },
   greetingHeadline: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "800",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   greetingSub: {
     fontSize: 13,
@@ -357,9 +571,10 @@ const styles = StyleSheet.create({
   marketBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   marketText: {
     fontSize: 12,
@@ -369,24 +584,98 @@ const styles = StyleSheet.create({
   // Hero Next Match Card
   heroCard: {
     marginBottom: 16,
+    padding: 0,
+    overflow: "hidden",
+  },
+  heroLayout: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  heroDetailsCol: {
+    flex: 1,
+    padding: 20,
+  },
+  heroImageCol: {
+    width: 240,
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+    minHeight: 220,
   },
   heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  heroBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  heroNextMatchText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
   heroLiveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  heroOpponentTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-    marginBottom: 12,
+
+  // Players Faceoff
+  playersFaceoff: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    marginBottom: 16,
+    paddingVertical: 8,
   },
+  playerBlock: {
+    alignItems: "center",
+    maxWidth: 140,
+  },
+  avatarWrapper: {
+    position: "relative",
+  },
+  heroAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    marginBottom: 6,
+  },
+  youBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#15803d",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  youBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  heroPlayerName: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  heroPlayerSub: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  vsContainer: {
+    paddingHorizontal: 8,
+  },
+  vsText: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+
   heroMetaWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -408,15 +697,51 @@ const styles = StyleSheet.create({
   },
   heroActionBtn: {
     flex: 1,
-    minWidth: 160,
+    minWidth: 150,
   },
 
-  // Season Metrics
+  // Season Card
+  seasonCard: {
+    marginBottom: 16,
+    padding: 16,
+  },
+  seasonHeaderRow: {
+    marginBottom: 12,
+  },
+  seasonTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  seasonTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
   metricsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
     marginBottom: 16,
+  },
+  progressContainer: {
+    marginTop: 4,
+  },
+  progressTextRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  progressBarBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 4,
   },
 
   // Two Column Layout
@@ -424,86 +749,159 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 16,
-    marginBottom: 4,
+    marginBottom: 16,
   },
   columnLeft: {
-    flex: 1,
+    flex: 1.2,
     minWidth: 320,
   },
   columnRight: {
     flex: 1,
-    minWidth: 320,
+    minWidth: 300,
+    gap: 16,
   },
 
-  // Slim Enrollment Banner (Low Emphasis)
-  enrollmentBanner: {
+  // Results Grid & Cards
+  resultsGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 8,
+    gap: 12,
+    padding: 12,
+  },
+  resultsStack: {
+    gap: 12,
+    padding: 12,
+  },
+  resultCard: {
+    flex: 1,
     borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    flexWrap: "wrap",
-    gap: 12,
+    borderRadius: 8,
+    padding: 12,
   },
-  enrollmentTextCol: {
-    flex: 1,
-    minWidth: 260,
-  },
-  bannerTagRow: {
+  resultHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  enrollmentHeadline: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  enrollmentSub: {
-    fontSize: 12,
-  },
-
-  // Recent Results List
-  resultRow: {
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 12,
+    alignItems: "center",
+    marginBottom: 8,
   },
-  resultMatchupCol: {
-    flex: 1,
-    minWidth: 180,
-  },
-  resultMatchupText: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 2,
-  },
-  resultWinner: {
-    fontWeight: "700",
-  },
-  resultVs: {
-    fontWeight: "400",
-  },
-  resultLoser: {
-    fontWeight: "600",
-  },
-  resultDivisionText: {
+  resultDate: {
     fontSize: 11,
   },
-  resultScoreCol: {
-    alignItems: "flex-end",
-    gap: 4,
+  resultPlayerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
   },
-  resultScoreLine: {
+  resultAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  resultWinnerName: {
     fontSize: 13,
     fontWeight: "700",
-    letterSpacing: -0.1,
+    flex: 1,
   },
+  resultLoserName: {
+    fontSize: 13,
+    fontWeight: "500",
+    flex: 1,
+  },
+  resultScoreValue: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  resultMeta: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+
+  // Quick Action Shortcuts
+  shortcutRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 12,
+  },
+  shortcutBtn: {
+    alignItems: "center",
+    paddingHorizontal: 12,
+  },
+  shortcutText: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  // Promo Card with Court Net Image
+  promoCardContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+    minHeight: 200,
+    justifyContent: "flex-end",
+  },
+  promoImageWrapper: {
+    ...StyleSheet.absoluteFill,
+  },
+  promoBackgroundImage: {
+    width: "100%",
+    height: "100%",
+  },
+  promoOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(13, 43, 32, 0.78)",
+  },
+  promoContent: {
+    padding: 20,
+  },
+  promoTag: {
+    color: "#a7f3d0",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  promoTitle: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  promoSubtitle: {
+    color: "#e2e8f0",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  promoPillsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 16,
+  },
+  promoPill: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  promoPillText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  promoBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  promoPrice: {
+    color: "#ffffff",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  promoJoinBtn: {
+    backgroundColor: "#34d399",
+  },
+
   loadingFeed: {
     padding: 24,
     alignItems: "center",
