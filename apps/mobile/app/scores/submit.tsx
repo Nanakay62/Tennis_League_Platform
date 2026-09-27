@@ -571,9 +571,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   stepBtnSmall: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: colors.border,

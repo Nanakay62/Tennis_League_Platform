@@ -3,33 +3,39 @@ import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { colors } from "../src/theme/colors";
+import { colors, useThemeColors } from "../src/theme/colors";
+import { OfflineBanner } from "../src/components/OfflineBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
       staleTime: 1000 * 60 * 2, // 2 minutes
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours offline persistence
+      networkMode: "offlineFirst",
     },
   },
 });
 
 export default function RootLayout() {
+  const { colors: themeColors, isDark } = useThemeColors();
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? "light" : "light"} />
+        <OfflineBanner />
         <Stack
           screenOptions={{
             headerStyle: {
-              backgroundColor: colors.primary,
+              backgroundColor: themeColors.primary,
             },
             headerTintColor: "#fff",
             headerTitleStyle: {
-              fontWeight: "600",
+              fontWeight: "700",
             },
             contentStyle: {
-              backgroundColor: colors.background,
+              backgroundColor: themeColors.background,
             },
           }}
         >

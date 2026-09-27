@@ -265,38 +265,46 @@ export default function DivisionDetailScreen() {
                 />
               }
               contentContainerStyle={styles.listContent}
-              renderItem={({ item }) => (
-                <View style={styles.card}>
-                  <View style={styles.cardTop}>
-                    <View style={styles.rankBadge}>
-                      <Text style={styles.rankText}>#{item.rank}</Text>
-                    </View>
-                    <View style={styles.cardHeaderInfo}>
-                      <View style={styles.nameRow}>
-                        <Text style={styles.cardPlayerName}>{item.playerName}</Text>
-                        {item.isDaytime && <Text style={styles.daytimeFlag}> (d)</Text>}
+              renderItem={({ item }) => {
+                const cardLabel = `Rank ${item.rank}: ${item.playerName}, record ${item.wins} wins and ${item.losses} losses, games percentage ${item.gamesPctDisplay} in ${item.homeArea || "Frankfurt"}`;
+                return (
+                  <View
+                    style={styles.card}
+                    accessible={true}
+                    accessibilityRole="summary"
+                    accessibilityLabel={cardLabel}
+                  >
+                    <View style={styles.cardTop}>
+                      <View style={styles.rankBadge}>
+                        <Text style={styles.rankText}>#{item.rank}</Text>
                       </View>
-                      <Text style={styles.cardArea}>{item.homeArea || "Frankfurt"}</Text>
+                      <View style={styles.cardHeaderInfo}>
+                        <View style={styles.nameRow}>
+                          <Text style={styles.cardPlayerName}>{item.playerName}</Text>
+                          {item.isDaytime && <Text style={styles.daytimeFlag}> (d)</Text>}
+                        </View>
+                        <Text style={styles.cardArea}>{item.homeArea || "Frankfurt"}</Text>
+                      </View>
+                      <View style={styles.recordBadge}>
+                        <Text style={styles.recordText}>
+                          {item.wins}-{item.losses}
+                        </Text>
+                        <Text style={styles.diffText}>{item.playoffIndicator}</Text>
+                      </View>
                     </View>
-                    <View style={styles.recordBadge}>
-                      <Text style={styles.recordText}>
-                        {item.wins}-{item.losses}
+                    <View style={styles.cardBottom}>
+                      <Text style={styles.statLabel}>
+                        Games %: <Text style={styles.statValue}>{item.gamesPctDisplay}</Text>
                       </Text>
-                      <Text style={styles.diffText}>{item.playoffIndicator}</Text>
+                      {item.isPlayoffEligible && (
+                        <View style={styles.playoffBadge}>
+                          <Text style={styles.playoffBadgeText}>Playoff Spot</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
-                  <View style={styles.cardBottom}>
-                    <Text style={styles.statLabel}>
-                      Games %: <Text style={styles.statValue}>{item.gamesPctDisplay}</Text>
-                    </Text>
-                    {item.isPlayoffEligible && (
-                      <View style={styles.playoffBadge}>
-                        <Text style={styles.playoffBadgeText}>Playoff Spot</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              )}
+                );
+              }}
             />
           )}
         </>
@@ -648,9 +656,13 @@ const styles = StyleSheet.create({
   },
   reportScoreBtn: {
     backgroundColor: colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   reportScoreBtnText: {
     color: "#fff",
@@ -665,10 +677,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   tab: {
-    paddingVertical: 12,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     marginRight: 20,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
   },
   tabActive: {
     borderBottomColor: colors.primary,

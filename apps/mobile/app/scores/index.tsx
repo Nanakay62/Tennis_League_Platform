@@ -12,6 +12,8 @@ import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { colors } from "../../src/theme/colors";
 import { getLatestScoresFeed, LatestScoreFeedItem } from "../../src/api/client";
+import { formatScoreForScreenReader, accessibleButtonProps } from "../../src/lib/accessibility";
+import { MIN_TOUCH_TARGET } from "../../src/theme/tokens";
 
 export default function LatestScoresScreen() {
   const {
@@ -35,9 +37,16 @@ export default function LatestScoresScreen() {
 
     const isRetirement = item.outcome_type === "retired";
     const isWalkover = item.outcome_type === "walkover" || item.outcome_type === "no_show";
+    const spokenScore = formatScoreForScreenReader(item.score_line);
+    const cardAccessibilityLabel = `${item.winner_name} defeated ${item.loser_name}, score ${spokenScore}, in division ${item.division_name}, played on ${formattedDate}`;
 
     return (
-      <View style={styles.card}>
+      <View
+        style={styles.card}
+        accessible={true}
+        accessibilityRole="summary"
+        accessibilityLabel={cardAccessibilityLabel}
+      >
         <View style={styles.cardHeader}>
           <Text style={styles.divisionTag}>{item.division_name}</Text>
           <Text style={styles.dateText}>{formattedDate}</Text>
@@ -73,7 +82,7 @@ export default function LatestScoresScreen() {
     <View style={styles.container}>
       {/* Top Banner & Action */}
       <View style={styles.topBar}>
-        <View>
+        <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={styles.title}>Latest Results</Text>
           <Text style={styles.subtitle}>Verified scores across Frankfurt flex divisions</Text>
         </View>
@@ -81,6 +90,10 @@ export default function LatestScoresScreen() {
           style={styles.reportBtn}
           onPress={() => router.push("/scores/submit")}
           activeOpacity={0.8}
+          {...accessibleButtonProps(
+            "Report Match Score",
+            "Opens the score submission form to report a flex match result"
+          )}
         >
           <Text style={styles.reportBtnText}>+ Report Score</Text>
         </TouchableOpacity>
@@ -153,9 +166,13 @@ const styles = StyleSheet.create({
   },
   reportBtn: {
     backgroundColor: colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   reportBtnText: {
     color: "#fff",
@@ -277,9 +294,13 @@ const styles = StyleSheet.create({
   },
   retryBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   retryBtnText: {
     color: "#fff",

@@ -83,12 +83,22 @@ export default function CourtsDirectoryScreen() {
           <TouchableOpacity
             style={styles.bookButton}
             onPress={() => openBooking(item.booking_url)}
+            accessible={true}
+            accessibilityRole="link"
+            accessibilityLabel={`Book court online at ${item.name}`}
+            accessibilityHint="Opens external club reservation website"
           >
             <Text style={styles.bookButtonText}>Book Court ↗</Text>
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity style={styles.mapButton} onPress={() => openMap(item)}>
+        <TouchableOpacity
+          style={styles.mapButton}
+          onPress={() => openMap(item)}
+          accessible={true}
+          accessibilityRole="link"
+          accessibilityLabel={`Get directions to ${item.name} in Google Maps`}
+        >
           <Text style={styles.mapButtonText}>Directions 📍</Text>
         </TouchableOpacity>
       </View>
@@ -225,12 +235,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    minHeight: 44,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 22,
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -346,9 +359,13 @@ const styles = StyleSheet.create({
   },
   bookButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 6,
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   bookButtonText: {
     color: "#fff",
@@ -359,9 +376,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 6,
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   mapButtonText: {
     color: colors.text,

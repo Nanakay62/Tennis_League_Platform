@@ -57,13 +57,25 @@ export default function PartnerProgramScreen() {
 
       <View style={styles.contactRow}>
         {item.phone ? (
-          <TouchableOpacity style={styles.contactBtn} onPress={() => handleCall(item.phone)}>
+          <TouchableOpacity
+            style={styles.contactBtn}
+            onPress={() => handleCall(item.phone)}
+            accessible={true}
+            accessibilityRole="link"
+            accessibilityLabel={`Call partner ${item.display_name} at ${item.phone}`}
+          >
             <Text style={styles.contactBtnText}>📞 {item.phone}</Text>
           </TouchableOpacity>
         ) : null}
 
         {item.email ? (
-          <TouchableOpacity style={styles.contactBtn} onPress={() => handleEmail(item.email)}>
+          <TouchableOpacity
+            style={styles.contactBtn}
+            onPress={() => handleEmail(item.email)}
+            accessible={true}
+            accessibilityRole="link"
+            accessibilityLabel={`Email partner ${item.display_name} at ${item.email}`}
+          >
             <Text style={styles.contactBtnText}>✉️ {item.email}</Text>
           </TouchableOpacity>
         ) : null}
@@ -243,9 +255,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   contactBtnText: {
     fontSize: 13,
@@ -270,9 +286,13 @@ const styles = StyleSheet.create({
   },
   retryBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   retryBtnText: {
     color: "#fff",

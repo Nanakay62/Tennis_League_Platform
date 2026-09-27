@@ -49,7 +49,12 @@ export default function POTYLeaderboardScreen() {
   const rest = leaderboard?.slice(3) || [];
 
   const renderItem = ({ item }: { item: POTYItem }) => (
-    <View style={styles.rowCard}>
+    <View
+      style={styles.rowCard}
+      accessible={true}
+      accessibilityRole="summary"
+      accessibilityLabel={`Rank ${item.rank}: ${item.display_name}, ${item.total_points} points, ${item.matches_played} matches played in ${item.home_area || "Frankfurt"}`}
+    >
       <Text style={styles.rankNum}>#{item.rank}</Text>
       <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={styles.playerName}>{item.display_name}</Text>
@@ -69,13 +74,20 @@ export default function POTYLeaderboardScreen() {
       {/* Referral Share Card */}
       {referral && (
         <View style={styles.referralCard}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.refTitle}>Invite Friends & Earn €5.00</Text>
             <Text style={styles.refSub}>
               Share code <Text style={styles.refCode}>{referral.referral_code}</Text> — you both get €5 off!
             </Text>
           </View>
-          <TouchableOpacity style={styles.copyBtn} onPress={copyReferral}>
+          <TouchableOpacity
+            style={styles.copyBtn}
+            onPress={copyReferral}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Copy Referral Link"
+            accessibilityHint="Copies your personal referral link and code to the clipboard"
+          >
             <Text style={styles.copyBtnText}>Copy Link</Text>
           </TouchableOpacity>
         </View>
@@ -202,12 +214,16 @@ const styles = StyleSheet.create({
   },
   copyBtn: {
     backgroundColor: "#fbc02d",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   copyBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: "#212121",
   },
