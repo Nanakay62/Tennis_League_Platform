@@ -4,15 +4,16 @@ import {
   Text,
   StyleSheet,
   Switch,
-  ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
-import { colors } from "../../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../../src/theme/colors";
 import { API_BASE_URL, getNotificationHistory, NotificationHistoryItem } from "../../src/api/client";
 import { getAccessToken } from "../../src/lib/auth";
+import { AppShell, Card, Badge } from "../../src/components";
 
 export default function NotificationsScreen() {
+  const { colors } = useThemeColors();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
@@ -77,256 +78,270 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <AppShell title="NOTIFICATIONS" showBack>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </AppShell>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.headerTitle}>Communication Settings</Text>
-      <Text style={styles.headerSubtitle}>
-        Manage what updates and notifications you receive from Frankfurt Tennis League.
-      </Text>
-
-      {/* Email Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardSection}>Email Notifications</Text>
-
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Season & Division Kickoff</Text>
-            <Text style={styles.rowDesc}>Division schedules, rosters, and opponent contacts</Text>
-          </View>
-          <Switch
-            value={settings.email_kickoff}
-            onValueChange={(val) => toggleSetting("email_kickoff", val)}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Weekly Match Reminders</Text>
-            <Text style={styles.rowDesc}>Gentle reminders to schedule your weekly flex match</Text>
-          </View>
-          <Switch
-            value={settings.email_reminders}
-            onValueChange={(val) => toggleSetting("email_reminders", val)}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Match Score Reports & Confirmations</Text>
-            <Text style={styles.rowDesc}>Immediate alerts when an opponent submits a score</Text>
-          </View>
-          <Switch
-            value={settings.email_results}
-            onValueChange={(val) => toggleSetting("email_results", val)}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
+    <AppShell title="NOTIFICATIONS" showBack>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Communication Settings
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Manage what alerts and updates you receive across email and push channels.
+        </Text>
       </View>
 
-      {/* Push Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardSection}>Mobile Push Notifications</Text>
-
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Kickoff Alerts</Text>
-            <Text style={styles.rowDesc}>Push notification when divisions are published</Text>
-          </View>
-          <Switch
-            value={settings.push_kickoff}
-            onValueChange={(val) => toggleSetting("push_kickoff", val)}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Weekly Schedule Nudges</Text>
-            <Text style={styles.rowDesc}>Reminders when a match hasn't been played in 7 days</Text>
-          </View>
-          <Switch
-            value={settings.push_reminders}
-            onValueChange={(val) => toggleSetting("push_reminders", val)}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Score Confirmations & Disputes</Text>
-            <Text style={styles.rowDesc}>Real-time notification to confirm or dispute match scores</Text>
-          </View>
-          <Switch
-            value={settings.push_results}
-            onValueChange={(val) => toggleSetting("push_results", val)}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
-      </View>
-
-      {/* Recent Notifications Feed */}
-      <View style={styles.card}>
-        <Text style={styles.cardSection}>Recent Alerts & History</Text>
-        {history.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No notifications received yet.</Text>
-          </View>
-        ) : (
-          history.map((item) => (
-            <View key={item.id} style={styles.historyRow}>
-              <Text style={styles.historyIcon}>
-                {item.event_type === "kickoff" ? "🎾" : item.event_type === "reminders" ? "⏰" : "✅"}
+      <View style={styles.contentWrap}>
+        {/* Email Section */}
+        <Card title="Email Notifications" noPadding>
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextCol}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>
+                Season & Division Kickoff
               </Text>
-              <View style={styles.historyContent}>
-                <View style={styles.historyHeader}>
-                  <Text style={styles.historyTitle}>{item.title}</Text>
-                  <Text style={styles.historyBadge}>{item.channel.toUpperCase()}</Text>
-                </View>
-                <Text style={styles.historyBody}>{item.body}</Text>
-                <Text style={styles.historyTime}>
-                  {new Date(item.created_at).toLocaleDateString("de-DE", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </Text>
-              </View>
+              <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
+                Division schedules, rosters, and opponent contact details
+              </Text>
             </View>
-          ))
-        )}
+            <Switch
+              value={settings.email_kickoff}
+              onValueChange={(val) => toggleSetting("email_kickoff", val)}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+
+          <View style={[styles.switchRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+            <View style={styles.switchTextCol}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>
+                Weekly Match Reminders
+              </Text>
+              <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
+                Gentle nudges to schedule your weekly flex match
+              </Text>
+            </View>
+            <Switch
+              value={settings.email_reminders}
+              onValueChange={(val) => toggleSetting("email_reminders", val)}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+
+          <View style={[styles.switchRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+            <View style={styles.switchTextCol}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>
+                Score Reports & Confirmations
+              </Text>
+              <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
+                Immediate alerts when an opponent submits a match score
+              </Text>
+            </View>
+            <Switch
+              value={settings.email_results}
+              onValueChange={(val) => toggleSetting("email_results", val)}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+        </Card>
+
+        {/* Push Section */}
+        <Card title="Mobile Push Notifications" noPadding>
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextCol}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>
+                Kickoff Alerts
+              </Text>
+              <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
+                Push notification when divisions and opponents are published
+              </Text>
+            </View>
+            <Switch
+              value={settings.push_kickoff}
+              onValueChange={(val) => toggleSetting("push_kickoff", val)}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+
+          <View style={[styles.switchRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+            <View style={styles.switchTextCol}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>
+                Weekly Schedule Nudges
+              </Text>
+              <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
+                Reminders when a match hasn't been arranged in 7 days
+              </Text>
+            </View>
+            <Switch
+              value={settings.push_reminders}
+              onValueChange={(val) => toggleSetting("push_reminders", val)}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+
+          <View style={[styles.switchRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+            <View style={styles.switchTextCol}>
+              <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>
+                Score Confirmations & Disputes
+              </Text>
+              <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
+                Real-time alert to confirm or dispute reported match scores
+              </Text>
+            </View>
+            <Switch
+              value={settings.push_results}
+              onValueChange={(val) => toggleSetting("push_results", val)}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+        </Card>
+
+        {/* Recent Alerts Feed */}
+        <Card title="Recent Alert History" noPadding>
+          {history.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No notifications received yet.
+              </Text>
+            </View>
+          ) : (
+            history.map((item, idx) => {
+              const isLast = idx === history.length - 1;
+              const iconName = item.event_type === "kickoff" ? "calendar" : item.event_type === "reminders" ? "clock" : "check-circle";
+
+              return (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.historyRow,
+                    !isLast && { borderBottomColor: colors.borderSubtle, borderBottomWidth: 1 },
+                  ]}
+                >
+                  <View style={[styles.historyIconCircle, { backgroundColor: colors.accentSecondary }]}>
+                    <Feather name={iconName} size={16} color={colors.primary} />
+                  </View>
+
+                  <View style={styles.historyContent}>
+                    <View style={styles.historyTopLine}>
+                      <Text style={[styles.historyTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Badge label={item.channel.toUpperCase()} variant="neutral" size="sm" />
+                    </View>
+
+                    <Text style={[styles.historyBody, { color: colors.textSecondary }]}>
+                      {item.body}
+                    </Text>
+
+                    <Text style={[styles.historyTime, { color: colors.textMuted }]}>
+                      {new Date(item.created_at).toLocaleDateString("de-DE", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </Card>
       </View>
-    </ScrollView>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    maxWidth: 600,
-    width: "100%",
-    alignSelf: "center",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 18,
-    lineHeight: 20,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 8,
+  header: {
     marginBottom: 16,
   },
-  cardSection: {
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
     fontSize: 13,
-    fontWeight: "700",
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    letterSpacing: 0.5,
+    marginTop: 2,
+    fontWeight: "500",
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  loadingContainer: {
+    padding: 64,
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    justifyContent: "center",
   },
-  rowText: {
+  contentWrap: {
+    gap: 16,
+    marginBottom: 32,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  switchTextCol: {
     flex: 1,
-    paddingRight: 16,
   },
   rowTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 2,
   },
   rowDesc: {
     fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
     lineHeight: 16,
   },
   emptyContainer: {
-    padding: 20,
+    padding: 24,
     alignItems: "center",
+    justifyContent: "center",
   },
   emptyText: {
-    color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
   historyRow: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    alignItems: "flex-start",
+    padding: 14,
+    gap: 12,
   },
-  historyIcon: {
-    fontSize: 22,
-    marginRight: 12,
+  historyIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 2,
   },
   historyContent: {
     flex: 1,
   },
-  historyHeader: {
+  historyTopLine: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 2,
+    justifyContent: "space-between",
+    marginBottom: 4,
+    gap: 8,
   },
   historyTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
-    color: colors.text,
     flex: 1,
   },
-  historyBadge: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.primary,
-    backgroundColor: "#e8f5e9",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
   historyBody: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginVertical: 4,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 4,
   },
   historyTime: {
     fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
   },
 });

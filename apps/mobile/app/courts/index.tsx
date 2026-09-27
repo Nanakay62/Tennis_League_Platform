@@ -11,10 +11,13 @@ import {
   ScrollView,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { colors } from "../../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../../src/theme/colors";
 import { getCourts, Court } from "../../src/api/client";
+import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
 
 export default function CourtsDirectoryScreen() {
+  const { colors, isDark } = useThemeColors();
   const [selectedSurface, setSelectedSurface] = useState<string | null>(null);
   const [filterIndoor, setFilterIndoor] = useState<boolean | null>(null);
   const [filterLights, setFilterLights] = useState<boolean | null>(null);
@@ -46,135 +49,365 @@ export default function CourtsDirectoryScreen() {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
   };
 
+  const clearFilters = () => {
+    setSelectedSurface(null);
+    setFilterIndoor(null);
+    setFilterLights(null);
+    setFilterWall(null);
+  };
+
   const renderItem = ({ item }: { item: Court }) => (
-    <View style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.courtName}>{item.name}</Text>
-          <Text style={styles.courtAddress}>
-            📍 {item.address}, {item.postal_code} {item.city}
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={[styles.courtName, { color: colors.textPrimary }]}>
+            {item.name}
           </Text>
+          <View style={styles.addressRow}>
+            <Feather
+              name="map-pin"
+              size={12}
+              color={colors.textSecondary}
+              style={{ marginTop: 2, marginRight: 4 }}
+            />
+            <Text style={[styles.courtAddress, { color: colors.textSecondary }]}>
+              {item.address}, {item.postal_code} {item.city}
+            </Text>
+          </View>
         </View>
-        <View style={styles.ratingBadge}>
-          <Text style={styles.ratingStar}>★</Text>
-          <Text style={styles.ratingText}>
-            {item.average_rating > 0 ? item.average_rating.toFixed(1) : "New"}
-          </Text>
-          {item.review_count > 0 && (
-            <Text style={styles.reviewCount}>({item.review_count})</Text>
-          )}
-        </View>
+        {item.average_rating > 0 ? (
+          <Badge
+            variant="warning"
+            icon="star"
+            label={`${item.average_rating.toFixed(1)}${
+              item.review_count > 0 ? ` (${item.review_count})` : ""
+            }`}
+          />
+        ) : (
+          <Badge variant="neutral" label="New" />
+        )}
       </View>
 
       {/* Surface & Amenities Badges */}
       <View style={styles.amenitiesRow}>
-        <View style={styles.surfaceBadge}>
-          <Text style={styles.surfaceText}>{item.surface.toUpperCase()}</Text>
-        </View>
-        <Text style={styles.courtsCountBadge}>{item.num_courts} Courts</Text>
-        {item.is_indoor && <Text style={styles.amenityBadge}>Indoor</Text>}
-        {item.has_lights && <Text style={styles.amenityBadge}>Floodlights</Text>}
-        {item.has_hitting_wall && <Text style={styles.amenityBadge}>Hitting Wall</Text>}
+        <Badge
+          variant="accent"
+          size="sm"
+          label={item.surface.toUpperCase()}
+        />
+        <Badge
+          variant="neutral"
+          size="sm"
+          label={`${item.num_courts} Courts`}
+        />
+        {item.is_indoor && (
+          <Badge variant="neutral" size="sm" label="Indoor" />
+        )}
+        {item.has_lights && (
+          <Badge variant="neutral" size="sm" label="Floodlights" />
+        )}
+        {item.has_hitting_wall && (
+          <Badge variant="neutral" size="sm" label="Hitting Wall" />
+        )}
       </View>
 
       {/* Actions */}
-      <View style={styles.actionsRow}>
+      <View style={[styles.actionsRow, { borderTopColor: colors.borderSubtle }]}>
         {item.booking_url ? (
-          <TouchableOpacity
-            style={styles.bookButton}
+          <Button
+            size="sm"
+            variant="primary"
+            iconRight="external-link"
             onPress={() => openBooking(item.booking_url)}
-            accessible={true}
-            accessibilityRole="link"
             accessibilityLabel={`Book court online at ${item.name}`}
-            accessibilityHint="Opens external club reservation website"
           >
-            <Text style={styles.bookButtonText}>Book Court ↗</Text>
-          </TouchableOpacity>
+            Book Court
+          </Button>
         ) : null}
 
-        <TouchableOpacity
-          style={styles.mapButton}
+        <Button
+          size="sm"
+          variant="secondary"
+          iconRight="map-pin"
           onPress={() => openMap(item)}
-          accessible={true}
-          accessibilityRole="link"
           accessibilityLabel={`Get directions to ${item.name} in Google Maps`}
         >
-          <Text style={styles.mapButtonText}>Directions 📍</Text>
-        </TouchableOpacity>
+          Directions
+        </Button>
       </View>
-    </View>
+    </Card>
   );
 
+  const hasActiveFilters =
+    selectedSurface !== null ||
+    filterIndoor !== null ||
+    filterLights !== null ||
+    filterWall !== null;
+
   return (
-    <View style={styles.container}>
+    <AppShell title="COURTS">
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Frankfurt Courts
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Find tennis courts, surfaces, and booking details across Frankfurt.
+        </Text>
+      </View>
+
       {/* Filter Chips Bar */}
-      <View style={styles.filtersWrapper}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
+      <View
+        style={[
+          styles.filtersWrapper,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.borderSubtle,
+          },
+        ]}
+      >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersScroll}
+        >
           <TouchableOpacity
-            style={[styles.filterChip, selectedSurface === null && !filterIndoor && !filterLights && styles.filterChipActive]}
-            onPress={() => {
-              setSelectedSurface(null);
-              setFilterIndoor(null);
-              setFilterLights(null);
-              setFilterWall(null);
-            }}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: !hasActiveFilters
+                  ? colors.primary
+                  : colors.surfaceMuted,
+                borderColor: !hasActiveFilters
+                  ? colors.primary
+                  : colors.borderSubtle,
+              },
+            ]}
+            onPress={clearFilters}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by all courts"
           >
-            <Text style={[styles.filterChipText, selectedSurface === null && !filterIndoor && !filterLights && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color: !hasActiveFilters
+                    ? (isDark ? "#0d1413" : "#ffffff")
+                    : colors.textSecondary,
+                  fontWeight: !hasActiveFilters ? "700" : "500",
+                },
+              ]}
+            >
               All Courts
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedSurface === "clay" && styles.filterChipActive]}
-            onPress={() => setSelectedSurface(selectedSurface === "clay" ? null : "clay")}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedSurface === "clay"
+                    ? colors.primary
+                    : colors.surfaceMuted,
+                borderColor:
+                  selectedSurface === "clay"
+                    ? colors.primary
+                    : colors.borderSubtle,
+              },
+            ]}
+            onPress={() =>
+              setSelectedSurface(selectedSurface === "clay" ? null : "clay")
+            }
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by clay surface"
           >
-            <Text style={[styles.filterChipText, selectedSurface === "clay" && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color:
+                    selectedSurface === "clay"
+                      ? (isDark ? "#0d1413" : "#ffffff")
+                      : colors.textSecondary,
+                  fontWeight: selectedSurface === "clay" ? "700" : "500",
+                },
+              ]}
+            >
               Clay (Sand)
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedSurface === "hard" && styles.filterChipActive]}
-            onPress={() => setSelectedSurface(selectedSurface === "hard" ? null : "hard")}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedSurface === "hard"
+                    ? colors.primary
+                    : colors.surfaceMuted,
+                borderColor:
+                  selectedSurface === "hard"
+                    ? colors.primary
+                    : colors.borderSubtle,
+              },
+            ]}
+            onPress={() =>
+              setSelectedSurface(selectedSurface === "hard" ? null : "hard")
+            }
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by hard court surface"
           >
-            <Text style={[styles.filterChipText, selectedSurface === "hard" && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color:
+                    selectedSurface === "hard"
+                      ? (isDark ? "#0d1413" : "#ffffff")
+                      : colors.textSecondary,
+                  fontWeight: selectedSurface === "hard" ? "700" : "500",
+                },
+              ]}
+            >
               Hard Court
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedSurface === "carpet" && styles.filterChipActive]}
-            onPress={() => setSelectedSurface(selectedSurface === "carpet" ? null : "carpet")}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedSurface === "carpet"
+                    ? colors.primary
+                    : colors.surfaceMuted,
+                borderColor:
+                  selectedSurface === "carpet"
+                    ? colors.primary
+                    : colors.borderSubtle,
+              },
+            ]}
+            onPress={() =>
+              setSelectedSurface(selectedSurface === "carpet" ? null : "carpet")
+            }
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by carpet surface"
           >
-            <Text style={[styles.filterChipText, selectedSurface === "carpet" && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color:
+                    selectedSurface === "carpet"
+                      ? (isDark ? "#0d1413" : "#ffffff")
+                      : colors.textSecondary,
+                  fontWeight: selectedSurface === "carpet" ? "700" : "500",
+                },
+              ]}
+            >
               Carpet / Teppich
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, filterIndoor === true && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  filterIndoor === true ? colors.primary : colors.surfaceMuted,
+                borderColor:
+                  filterIndoor === true
+                    ? colors.primary
+                    : colors.borderSubtle,
+              },
+            ]}
             onPress={() => setFilterIndoor(filterIndoor === true ? null : true)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by indoor courts"
           >
-            <Text style={[styles.filterChipText, filterIndoor === true && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color:
+                    filterIndoor === true
+                      ? (isDark ? "#0d1413" : "#ffffff")
+                      : colors.textSecondary,
+                  fontWeight: filterIndoor === true ? "700" : "500",
+                },
+              ]}
+            >
               Halle / Indoor
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, filterLights === true && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  filterLights === true ? colors.primary : colors.surfaceMuted,
+                borderColor:
+                  filterLights === true
+                    ? colors.primary
+                    : colors.borderSubtle,
+              },
+            ]}
             onPress={() => setFilterLights(filterLights === true ? null : true)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by courts with floodlights"
           >
-            <Text style={[styles.filterChipText, filterLights === true && styles.filterChipTextActive]}>
-              Flutlicht
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color:
+                    filterLights === true
+                      ? (isDark ? "#0d1413" : "#ffffff")
+                      : colors.textSecondary,
+                  fontWeight: filterLights === true ? "700" : "500",
+                },
+              ]}
+            >
+              Floodlights
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, filterWall === true && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  filterWall === true ? colors.primary : colors.surfaceMuted,
+                borderColor:
+                  filterWall === true ? colors.primary : colors.borderSubtle,
+              },
+            ]}
             onPress={() => setFilterWall(filterWall === true ? null : true)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by courts with hitting wall"
           >
-            <Text style={[styles.filterChipText, filterWall === true && styles.filterChipTextActive]}>
-              Ballwand
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color:
+                    filterWall === true
+                      ? (isDark ? "#0d1413" : "#ffffff")
+                      : colors.textSecondary,
+                  fontWeight: filterWall === true ? "700" : "500",
+                },
+              ]}
+            >
+              Hitting Wall
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -184,14 +417,24 @@ export default function CourtsDirectoryScreen() {
       {isLoading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Finding Frankfurt courts...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Finding Frankfurt courts...
+          </Text>
         </View>
       ) : isError ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Unable to load courts directory.</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
+          <Feather
+            name="alert-circle"
+            size={36}
+            color={colors.danger}
+            style={{ marginBottom: 12 }}
+          />
+          <Text style={[styles.errorText, { color: colors.danger }]}>
+            Unable to load courts directory.
+          </Text>
+          <Button variant="secondary" size="sm" onPress={() => refetch()}>
+            Retry
+          </Button>
         </View>
       ) : (
         <FlatList
@@ -199,6 +442,7 @@ export default function CourtsDirectoryScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -207,31 +451,43 @@ export default function CourtsDirectoryScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🎾</Text>
-              <Text style={styles.emptyTitle}>No courts match these filters</Text>
-              <Text style={styles.emptySubtitle}>Try clearing some filter tags.</Text>
-            </View>
+            <EmptyState
+              icon="map-pin"
+              title="No courts match these filters"
+              message="Try clearing some filter tags to see more courts."
+              action={{
+                label: "Clear Filters",
+                onPress: clearFilters,
+              }}
+            />
           }
         />
       )}
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
   },
   filtersWrapper: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
     paddingVertical: 10,
+    marginBottom: 16,
   },
   filtersScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     gap: 8,
   },
   filterChip: {
@@ -239,40 +495,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 22,
-    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
   },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
   filterChipText: {
     fontSize: 13,
-    fontWeight: "500",
-    color: colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: "#fff",
-    fontWeight: "700",
   },
   listContent: {
-    padding: 16,
     paddingBottom: 32,
+    gap: 12,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
   },
   cardHeader: {
     flexDirection: "row",
@@ -283,154 +518,42 @@ const styles = StyleSheet.create({
   courtName: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.text,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 4,
   },
   courtAddress: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 3,
-  },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff8e1",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  ratingStar: {
-    color: "#fbc02d",
-    fontSize: 14,
-    marginRight: 4,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#f57f17",
-  },
-  reviewCount: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginLeft: 3,
+    flexShrink: 1,
+    lineHeight: 18,
   },
   amenitiesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginVertical: 8,
-  },
-  surfaceBadge: {
-    backgroundColor: "#efebe9",
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-  },
-  surfaceText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#5d4037",
-  },
-  courtsCountBadge: {
-    backgroundColor: colors.surfaceSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.textSecondary,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-  },
-  amenityBadge: {
-    backgroundColor: "#e8f5e9",
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "600",
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    marginVertical: 10,
   },
   actionsRow: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 10,
+    marginTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.surfaceSecondary,
-    paddingTop: 10,
-  },
-  bookButton: {
-    backgroundColor: colors.primary,
-    minHeight: 44,
-    minWidth: 44,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  bookButtonText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  mapButton: {
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 44,
-    minWidth: 44,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  mapButtonText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "500",
+    paddingTop: 12,
   },
   centerContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 40,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
   },
   errorText: {
     fontSize: 14,
-    color: colors.danger,
-    marginBottom: 10,
-  },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  retryBtnText: {
-    color: "#fff",
     fontWeight: "600",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    paddingTop: 50,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
+    marginBottom: 12,
   },
 });

@@ -1,19 +1,14 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { Link, useRouter } from "expo-router";
-import { colors } from "../src/theme/colors";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../src/theme/colors";
 import { clearTokens, fetchCurrentUser, getRefreshToken, UserSession } from "../src/lib/auth";
 import { API_BASE_URL } from "../src/api/client";
+import { AppShell, Card, ListRow, Button, Badge } from "../src/components";
 
 export default function AccountScreen() {
+  const { colors } = useThemeColors();
   const router = useRouter();
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,310 +43,218 @@ export default function AccountScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.guestCard}>
-          <Text style={styles.guestTitle}>Sign In to Frankfurt Tennis</Text>
-          <Text style={styles.guestDesc}>
-            Access your player profile, match reports, communications, and account settings.
-          </Text>
-          <View style={styles.btnRow}>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.8}>
-                <Text style={styles.primaryBtnText}>Sign In</Text>
-              </TouchableOpacity>
-            </Link>
-            <Link href="/(auth)/register" asChild>
-              <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8}>
-                <Text style={styles.secondaryBtnText}>Create Account</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+      <AppShell title="MY ACCOUNT">
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </View>
+      </AppShell>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Card */}
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user.displayName.charAt(0).toUpperCase()}
+    <AppShell title="MY ACCOUNT">
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Account & Profile
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Manage your player credentials, preferences, and security settings.
+        </Text>
+      </View>
+
+      {!user ? (
+        <Card style={styles.guestCard} contentStyle={styles.guestContent}>
+          <View style={[styles.guestIconCircle, { backgroundColor: colors.accentSecondary }]}>
+            <Feather name="user" size={32} color={colors.primary} />
+          </View>
+          <Text style={[styles.guestTitle, { color: colors.textPrimary }]}>
+            Sign In to Frankfurt Tennis
           </Text>
-        </View>
-        <Text style={styles.userName}>{user.displayName}</Text>
-        <Text style={styles.userEmail}>{user.email}</Text>
-        <View style={styles.tagRow}>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>NTRP {user.rating}</Text>
+          <Text style={[styles.guestDesc, { color: colors.textSecondary }]}>
+            Access your player profile, match reports, communications, and account settings.
+          </Text>
+          <View style={styles.btnRow}>
+            <Button
+              variant="primary"
+              size="md"
+              href="/(auth)/login"
+              style={{ flex: 1 }}
+            >
+              Sign In
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              href="/(auth)/register"
+              style={{ flex: 1 }}
+            >
+              Create Account
+            </Button>
           </View>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>📍 {user.homeArea}</Text>
-          </View>
-          {user.isDaytime && (
-            <View style={[styles.tag, styles.daytimeTag]}>
-              <Text style={styles.daytimeTagText}>☀️ Daytime (d)</Text>
+        </Card>
+      ) : (
+        <View style={styles.contentWrap}>
+          {/* Profile Card */}
+          <Card style={styles.profileCard} contentStyle={styles.profileCardContent}>
+            <View style={[styles.avatar, { backgroundColor: colors.accentSecondary, borderColor: colors.borderSubtle }]}>
+              <Text style={[styles.avatarText, { color: colors.primary }]}>
+                {user.displayName.charAt(0).toUpperCase()}
+              </Text>
             </View>
-          )}
-        </View>
-      </View>
 
-      {/* Menu Options */}
-      <View style={styles.menuCard}>
-        <Text style={styles.menuSectionHeader}>Account & Settings</Text>
+            <View style={styles.profileDetails}>
+              <Text style={[styles.userName, { color: colors.textPrimary }]}>
+                {user.displayName}
+              </Text>
+              <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
+                {user.email}
+              </Text>
 
-        <Link href="/settings/notifications" asChild>
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-            <Text style={styles.menuIcon}>🔔</Text>
-            <View style={styles.menuTextContainer}>
-              <Text style={styles.menuTitle}>Communication Settings</Text>
-              <Text style={styles.menuDesc}>Email & push notification preferences</Text>
+              <View style={styles.tagRow}>
+                <Badge label={`NTRP ${user.rating}`} variant="neutral" icon="shield" size="sm" />
+                <Badge label={user.homeArea || "Frankfurt"} variant="neutral" icon="map-pin" size="sm" />
+                {user.isDaytime && (
+                  <Badge label="Daytime (d)" variant="accent" icon="sun" size="sm" />
+                )}
+              </View>
             </View>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-        </Link>
+          </Card>
 
-        <Link href="/settings/about" asChild>
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-            <Text style={styles.menuIcon}>📱</Text>
-            <View style={styles.menuTextContainer}>
-              <Text style={styles.menuTitle}>App Version</Text>
-              <Text style={styles.menuDesc}>View version and updates</Text>
-            </View>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-        </Link>
+          {/* Settings List Card */}
+          <Card title="Account Settings" noPadding>
+            <ListRow
+              icon="bell"
+              title="Communication Settings"
+              subtitle="Email & push notification preferences"
+              href="/settings/notifications"
+            />
+            <ListRow
+              icon="info"
+              title="App Version"
+              subtitle="System updates and market details"
+              href="/settings/about"
+            />
+            <ListRow
+              icon="trash-2"
+              title="Delete My Data"
+              subtitle="Anonymize results and delete account"
+              href="/settings/delete-account"
+              isLast
+            />
+          </Card>
 
-        <Link href="/settings/delete-account" asChild>
-          <TouchableOpacity
-            style={StyleSheet.flatten([styles.menuItem, styles.menuItemDanger])}
-            activeOpacity={0.7}
+          {/* Sign Out Button */}
+          <Button
+            variant="secondary"
+            size="lg"
+            onPress={handleLogout}
+            icon="log-out"
+            style={styles.logoutBtn}
           >
-            <Text style={styles.menuIcon}>🗑️</Text>
-            <View style={styles.menuTextContainer}>
-              <Text style={[styles.menuTitle, styles.dangerText]}>Delete My Data</Text>
-              <Text style={styles.menuDesc}>Anonymize results and delete account</Text>
-            </View>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-        </Link>
-      </View>
-
-      {/* Sign Out Button */}
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        onPress={handleLogout}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logoutBtnText}>Sign Out</Text>
-      </TouchableOpacity>
-    </ScrollView>
+            Sign Out
+          </Button>
+        </View>
+      )}
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    maxWidth: 600,
-    width: "100%",
-    alignSelf: "center",
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    fontWeight: "500",
   },
   loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+    padding: 64,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  contentWrap: {
+    gap: 12,
   },
   guestCard: {
-    backgroundColor: colors.surface,
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: 12,
+  },
+  guestContent: {
     alignItems: "center",
-    marginTop: 40,
+    padding: 24,
+  },
+  guestIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   guestTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
+    textAlign: "center",
   },
   guestDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 13,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: 20,
+    maxWidth: 320,
   },
   btnRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     width: "100%",
   },
-  primaryBtn: {
-    flex: 1,
-    height: 44,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  primaryBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  secondaryBtn: {
-    flex: 1,
-    height: 44,
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  secondaryBtnText: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "600",
-  },
   profileCard: {
-    backgroundColor: colors.surface,
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginBottom: 4,
+  },
+  profileCardContent: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    padding: 16,
+    gap: 16,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.badgeBg,
-    justifyContent: "center",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
     alignItems: "center",
-    marginBottom: 10,
+    justifyContent: "center",
   },
   avatarText: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "800",
-    color: colors.badgeText,
+  },
+  profileDetails: {
+    flex: 1,
   },
   userName: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
-    color: colors.text,
+    letterSpacing: -0.2,
+    marginBottom: 2,
   },
   userEmail: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-    marginBottom: 12,
+    fontSize: 13,
+    marginBottom: 8,
   },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "center",
-  },
-  tag: {
-    backgroundColor: colors.surfaceSecondary,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  daytimeTag: {
-    backgroundColor: "#fff8e1",
-    borderColor: "#ffe082",
-  },
-  daytimeTagText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#f57f17",
-  },
-  menuCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 8,
-    marginBottom: 20,
-  },
-  menuSectionHeader: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    letterSpacing: 0.5,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  menuItemDanger: {
-    borderTopColor: colors.border,
-  },
-  menuIcon: {
-    fontSize: 20,
-    marginRight: 14,
-  },
-  menuTextContainer: {
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  dangerText: {
-    color: colors.danger,
-  },
-  menuDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  menuArrow: {
-    fontSize: 20,
-    color: colors.textSecondary,
-    fontWeight: "400",
+    gap: 6,
   },
   logoutBtn: {
-    height: 46,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  logoutBtnText: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: "700",
+    marginTop: 8,
+    marginBottom: 24,
   },
 });
