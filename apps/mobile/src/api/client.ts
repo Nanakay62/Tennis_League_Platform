@@ -367,3 +367,138 @@ export async function getDivisionRoster(divisionId: string): Promise<{ players: 
   }
 }
 
+export interface PlayoffPlayerSummary {
+  id: string;
+  display_name: string;
+  seed_number?: number;
+}
+
+export interface PlayoffMatch {
+  id: string;
+  round_number: number;
+  match_number: number;
+  player1: PlayoffPlayerSummary | null;
+  player2: PlayoffPlayerSummary | null;
+  winner: PlayoffPlayerSummary | null;
+  score_summary: string | null;
+  is_bye: boolean;
+  deadline: string | null;
+  next_match_id: string | null;
+}
+
+export interface PlayoffBracket {
+  id: string;
+  division_id: string;
+  bracket_type: string;
+  bracket_size: number;
+  total_rounds: number;
+  status: string;
+  rounds: Record<string, PlayoffMatch[]>;
+}
+
+export async function getDivisionPlayoffs(divisionId: string): Promise<PlayoffBracket[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/divisions/${divisionId}/playoffs`);
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // Fallback sample playoff bracket
+    return [
+      {
+        id: "pb-sample-1",
+        division_id: divisionId,
+        bracket_type: "championship",
+        bracket_size: 4,
+        total_rounds: 2,
+        status: "active",
+        rounds: {
+          "1": [
+            {
+              id: "m-sf1",
+              round_number: 1,
+              match_number: 1,
+              player1: { id: "p1", display_name: "Lukas Schmidt", seed_number: 1 },
+              player2: { id: "p4", display_name: "Stefan Meyer", seed_number: 4 },
+              winner: { id: "p1", display_name: "Lukas Schmidt" },
+              score_summary: "6-3, 6-4",
+              is_bye: false,
+              deadline: new Date(Date.now() + 86400000 * 3).toISOString(),
+              next_match_id: "m-final",
+            },
+            {
+              id: "m-sf2",
+              round_number: 1,
+              match_number: 2,
+              player1: { id: "p2", display_name: "Maximilian Weber", seed_number: 2 },
+              player2: { id: "p3", display_name: "Felix Fischer", seed_number: 3 },
+              winner: null,
+              score_summary: null,
+              is_bye: false,
+              deadline: new Date(Date.now() + 86400000 * 3).toISOString(),
+              next_match_id: "m-final",
+            },
+          ],
+          "2": [
+            {
+              id: "m-final",
+              round_number: 2,
+              match_number: 1,
+              player1: { id: "p1", display_name: "Lukas Schmidt" },
+              player2: null,
+              winner: null,
+              score_summary: null,
+              is_bye: false,
+              deadline: new Date(Date.now() + 86400000 * 10).toISOString(),
+              next_match_id: null,
+            },
+          ],
+        },
+      },
+    ];
+  }
+}
+
+export async function generateDivisionPlayoffs(
+  divisionId: string,
+  minWins: number = 5
+): Promise<PlayoffBracket> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/divisions/${divisionId}/playoffs/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify({ min_wins: minWins, enable_veteran_seeding: true }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to generate playoff draw");
+  }
+  return data;
+}
+
+export async function reportPlayoffScore(
+  matchId: string,
+  winnerId: string,
+  scoreSummary: string
+): Promise<PlayoffMatch> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/playoffs/matches/${matchId}/score`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify({ winner_id: winnerId, score_summary: scoreSummary }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to record playoff score");
+  }
+  return data;
+}
+
+

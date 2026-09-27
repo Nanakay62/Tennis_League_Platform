@@ -25,6 +25,8 @@ from app.leagues import models as _leagues_models  # noqa: F401
 from app.markets import models as _markets_models  # noqa: F401
 from app.matches import models as _matches_models  # noqa: F401
 from app.matches.routes import router as matches_router
+from app.playoffs import models as _playoffs_models  # noqa: F401
+from app.playoffs.routes import router as playoffs_router
 
 settings = get_settings()
 
@@ -57,6 +59,7 @@ app.add_middleware(
 app.include_router(identity_router)
 app.include_router(billing_router)
 app.include_router(matches_router)
+app.include_router(playoffs_router)
 
 
 # Pydantic Schemas for API contract
