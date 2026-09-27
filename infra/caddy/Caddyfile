@@ -1,0 +1,47 @@
+# Caddy 2 Production Reverse Proxy Configuration
+# Tennis League Platform — Frankfurt Market
+
+{
+    email admin@tennis-league.de
+    admin off
+}
+
+{$APP_DOMAIN:api.tennis-league.de} {
+    encode zstd gzip
+
+    # Production Security Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net;"
+        -Server
+    }
+
+    # SQLAdmin Back Office Rate Limiting & Proxy
+    handle /admin* {
+        reverse_proxy api:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Host {upstream_hostport}
+        }
+    }
+
+    # API endpoints
+    handle /* {
+        reverse_proxy api:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Host {upstream_hostport}
+        }
+    }
+
+    # Health check passthrough
+    handle /health {
+        reverse_proxy api:8000
+    }
+}

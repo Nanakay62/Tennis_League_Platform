@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.admin import setup_admin
+from app.admin_actions.routes import router as admin_actions_router
 from app.billing import models as _billing_models  # noqa: F401
 from app.billing.routes import router as billing_router
 from app.catalog import models as _catalog_models  # noqa: F401
@@ -66,6 +68,10 @@ app.include_router(matches_router)
 app.include_router(playoffs_router)
 app.include_router(community_router)
 app.include_router(notify_router)
+app.include_router(admin_actions_router)
+
+# SQLAdmin back office mount at /admin
+admin = setup_admin(app)
 
 
 # Pydantic Schemas for API contract

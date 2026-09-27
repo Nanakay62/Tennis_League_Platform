@@ -1,0 +1,93 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tennis_league_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_in_production_strict_secret}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tennis_internal
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_in_production_strict_secret}@db:5432/${POSTGRES_DB:-tennis_league_prod}
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      DEFAULT_MARKET_NAME: "Frankfurt am Main"
+      DEFAULT_MARKET_SLUG: "frankfurt"
+      DEFAULT_MARKET_TIMEZONE: "Europe/Berlin"
+      DEFAULT_MARKET_CURRENCY: "EUR"
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN}
+      CORS_ORIGINS: '["https://${APP_DOMAIN:-api.tennis-league.de}", "https://tennis-league.de"]'
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - tennis_internal
+
+  worker:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    command: ["uv", "run", "procrastinate", "--app=app.jobs.procrastinate_app", "worker"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_in_production_strict_secret}@db:5432/${POSTGRES_DB:-tennis_league_prod}
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      DEFAULT_MARKET_TIMEZONE: "Europe/Berlin"
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN}
+    networks:
+      - tennis_internal
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-api.tennis-league.de}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_prod_data:/data
+      - caddy_prod_config:/config
+    depends_on:
+      - api
+    networks:
+      - tennis_internal
+
+volumes:
+  postgres_prod_data:
+  caddy_prod_data:
+  caddy_prod_config:
+
+networks:
+  tennis_internal:
+    driver: bridge

@@ -43,3 +43,17 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Dependency that requires administrative role (market_admin or super_admin)."""
+    from app.identity.models import UserRole
+
+    if current_user.role not in (UserRole.MARKET_ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrative access required.",
+        )
+    return current_user
