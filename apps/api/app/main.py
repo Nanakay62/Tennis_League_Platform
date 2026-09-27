@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from app.billing import models as _billing_models  # noqa: F401
 from app.billing.routes import router as billing_router
 from app.catalog import models as _catalog_models  # noqa: F401
+from app.community import models as _community_models  # noqa: F401
+from app.community.routes import router as community_router
 from app.config import get_settings
 from app.db import Base, engine
 from app.domain.standings import (
@@ -60,6 +62,7 @@ app.include_router(identity_router)
 app.include_router(billing_router)
 app.include_router(matches_router)
 app.include_router(playoffs_router)
+app.include_router(community_router)
 
 
 # Pydantic Schemas for API contract

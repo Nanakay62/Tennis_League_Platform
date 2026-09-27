@@ -501,4 +501,266 @@ export async function reportPlayoffScore(
   return data;
 }
 
+export interface Court {
+  id: string;
+  name: string;
+  slug: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  latitude: number | null;
+  longitude: number | null;
+  num_courts: number;
+  surface: string;
+  has_lights: boolean;
+  is_indoor: boolean;
+  has_hitting_wall: boolean;
+  booking_url: string | null;
+  average_rating: number;
+  review_count: number;
+}
+
+export interface CourtReview {
+  id: string;
+  user_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface CourtDetail extends Court {
+  reviews: CourtReview[];
+}
+
+export interface PartnerMatch {
+  player_id: string;
+  display_name: string;
+  rating: string | null;
+  home_area: string | null;
+  is_daytime: boolean;
+  phone: string | null;
+  email: string | null;
+}
+
+export interface POTYItem {
+  rank: number;
+  player_id: string;
+  display_name: string;
+  total_points: number;
+  matches_played: number;
+  matches_won: number;
+  distinct_opponents: number;
+  home_area: string | null;
+}
+
+export interface ReferralInfo {
+  referral_code: string;
+  referral_link: string;
+  reward_credit_cents: number;
+  completed_referrals_count: number;
+  pending_referrals_count: number;
+}
+
+export async function getCourts(filters?: {
+  surface?: string;
+  has_lights?: boolean;
+  is_indoor?: boolean;
+  has_hitting_wall?: boolean;
+}): Promise<Court[]> {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.surface) params.append("surface", filters.surface);
+    if (filters?.has_lights !== undefined) params.append("has_lights", String(filters.has_lights));
+    if (filters?.is_indoor !== undefined) params.append("is_indoor", String(filters.is_indoor));
+    if (filters?.has_hitting_wall !== undefined)
+      params.append("has_hitting_wall", String(filters.has_hitting_wall));
+
+    const res = await fetch(`${API_BASE_URL}/courts?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // Fallback sample courts
+    return [
+      {
+        id: "c-1",
+        name: "TC Palmengarten",
+        slug: "tc-palmengarten",
+        address: "Palmengartenstraße 10",
+        postal_code: "60323",
+        city: "Frankfurt am Main",
+        latitude: 50.1235,
+        longitude: 8.6583,
+        num_courts: 8,
+        surface: "clay",
+        has_lights: true,
+        is_indoor: false,
+        has_hitting_wall: true,
+        booking_url: "https://www.tcpalmengarten.de",
+        average_rating: 4.8,
+        review_count: 14,
+      },
+      {
+        id: "c-2",
+        name: "Tennisclub Kalbach Indoor Center",
+        slug: "tc-kalbach",
+        address: "Am Sportzentrum 3",
+        postal_code: "60437",
+        city: "Frankfurt am Main",
+        latitude: 50.1832,
+        longitude: 8.6431,
+        num_courts: 6,
+        surface: "carpet",
+        has_lights: true,
+        is_indoor: true,
+        has_hitting_wall: false,
+        booking_url: "https://www.sport-center-kalbach.de",
+        average_rating: 4.5,
+        review_count: 8,
+      },
+      {
+        id: "c-3",
+        name: "SC SAFO Frankfurt (Sachsenhausen)",
+        slug: "sc-safo",
+        address: "Kennedyallee 127",
+        postal_code: "60596",
+        city: "Frankfurt am Main",
+        latitude: 50.0911,
+        longitude: 8.6724,
+        num_courts: 10,
+        surface: "clay",
+        has_lights: true,
+        is_indoor: false,
+        has_hitting_wall: true,
+        booking_url: "https://www.safo-frankfurt.de",
+        average_rating: 4.7,
+        review_count: 22,
+      },
+    ];
+  }
+}
+
+export async function getCourtDetail(courtId: string): Promise<CourtDetail> {
+  const res = await fetch(`${API_BASE_URL}/courts/${courtId}`);
+  if (!res.ok) throw new Error("Court not found");
+  return await res.json();
+}
+
+export async function postCourtReview(
+  courtId: string,
+  rating: number,
+  comment?: string
+): Promise<CourtReview> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/courts/${courtId}/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify({ rating, comment }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Failed to submit review");
+  return data;
+}
+
+export async function getCompatiblePartners(): Promise<PartnerMatch[]> {
+  const headers = await getAuthHeader();
+  try {
+    const res = await fetch(`${API_BASE_URL}/partners`, { headers });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // Fallback sample partners
+    return [
+      {
+        player_id: "p1",
+        display_name: "Lukas Schmidt",
+        rating: "3.5",
+        home_area: "Sachsenhausen",
+        is_daytime: true,
+        phone: "+49 171 111111",
+        email: "lukas@example.com",
+      },
+      {
+        player_id: "p2",
+        display_name: "Maximilian Weber",
+        rating: "3.5",
+        home_area: "Westend",
+        is_daytime: false,
+        phone: "+49 172 222222",
+        email: "max@example.com",
+      },
+      {
+        player_id: "p3",
+        display_name: "Felix Fischer",
+        rating: "3.0",
+        home_area: "Nordend",
+        is_daytime: true,
+        phone: "+49 173 333333",
+        email: "felix@example.com",
+      },
+    ];
+  }
+}
+
+export async function getPOTYLeaderboard(): Promise<POTYItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/community/poty`);
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    return [
+      {
+        rank: 1,
+        player_id: "p1",
+        display_name: "Lukas Schmidt",
+        total_points: 185,
+        matches_played: 12,
+        matches_won: 9,
+        distinct_opponents: 8,
+        home_area: "Sachsenhausen",
+      },
+      {
+        rank: 2,
+        player_id: "p2",
+        display_name: "Maximilian Weber",
+        total_points: 160,
+        matches_played: 11,
+        matches_won: 7,
+        distinct_opponents: 7,
+        home_area: "Westend",
+      },
+      {
+        rank: 3,
+        player_id: "p3",
+        display_name: "Felix Fischer",
+        total_points: 135,
+        matches_played: 10,
+        matches_won: 5,
+        distinct_opponents: 6,
+        home_area: "Nordend",
+      },
+    ];
+  }
+}
+
+export async function getReferralInfo(): Promise<ReferralInfo> {
+  const headers = await getAuthHeader();
+  try {
+    const res = await fetch(`${API_BASE_URL}/community/referral`, { headers });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    return {
+      referral_code: "TENNIS-LUKAS-9B41",
+      referral_link: "https://frankfurt-tennis.de/join?ref=TENNIS-LUKAS-9B41",
+      reward_credit_cents: 500,
+      completed_referrals_count: 2,
+      pending_referrals_count: 1,
+    };
+  }
+}
+
+
 

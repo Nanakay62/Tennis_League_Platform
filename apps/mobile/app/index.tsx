@@ -47,6 +47,30 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Link>
 
+        <Link href="/partners" asChild>
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8}>
+            <Text style={styles.actionIcon}>🤝</Text>
+            <Text style={styles.actionTitle}>Practice Partners</Text>
+            <Text style={styles.actionDesc}>Match NTRP & earn €5 monthly</Text>
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="/courts" asChild>
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8}>
+            <Text style={styles.actionIcon}>📍</Text>
+            <Text style={styles.actionTitle}>Frankfurt Courts</Text>
+            <Text style={styles.actionDesc}>Directory, surfaces & lighting</Text>
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="/community/poty" asChild>
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8}>
+            <Text style={styles.actionIcon}>🏆</Text>
+            <Text style={styles.actionTitle}>Player of the Year</Text>
+            <Text style={styles.actionDesc}>Leaderboard & referral rewards</Text>
+          </TouchableOpacity>
+        </Link>
+
         <Link href="/join" asChild>
           <TouchableOpacity style={[styles.actionCard, { borderColor: colors.primary }]} activeOpacity={0.8}>
             <Text style={styles.actionIcon}>🛒</Text>
