@@ -9,12 +9,13 @@ import {
   Alert,
 } from "react-native";
 import { colors } from "../../src/theme/colors";
-import { API_BASE_URL } from "../../src/api/client";
+import { API_BASE_URL, getNotificationHistory, NotificationHistoryItem } from "../../src/api/client";
 import { getAccessToken } from "../../src/lib/auth";
 
 export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
   const [settings, setSettings] = useState({
     email_kickoff: true,
     email_reminders: true,
@@ -36,13 +37,17 @@ export default function NotificationsScreen() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/me/communication-settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [res, historyData] = await Promise.all([
+        fetch(`${API_BASE_URL}/me/communication-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        getNotificationHistory(),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
       }
+      setHistory(historyData);
     } finally {
       setLoading(false);
     }
@@ -166,6 +171,39 @@ export default function NotificationsScreen() {
           />
         </View>
       </View>
+
+      {/* Recent Notifications Feed */}
+      <View style={styles.card}>
+        <Text style={styles.cardSection}>Recent Alerts & History</Text>
+        {history.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No notifications received yet.</Text>
+          </View>
+        ) : (
+          history.map((item) => (
+            <View key={item.id} style={styles.historyRow}>
+              <Text style={styles.historyIcon}>
+                {item.event_type === "kickoff" ? "🎾" : item.event_type === "reminders" ? "⏰" : "✅"}
+              </Text>
+              <View style={styles.historyContent}>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyTitle}>{item.title}</Text>
+                  <Text style={styles.historyBadge}>{item.channel.toUpperCase()}</Text>
+                </View>
+                <Text style={styles.historyBody}>{item.body}</Text>
+                <Text style={styles.historyTime}>
+                  {new Date(item.created_at).toLocaleDateString("de-DE", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -234,5 +272,61 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 16,
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  historyRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  historyIcon: {
+    fontSize: 22,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  historyContent: {
+    flex: 1,
+  },
+  historyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+    flex: 1,
+  },
+  historyBadge: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.primary,
+    backgroundColor: "#e8f5e9",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  historyBody: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginVertical: 4,
+  },
+  historyTime: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });

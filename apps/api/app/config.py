@@ -44,6 +44,20 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8081",
     ]
 
+    # Push Notifications & Email
+    EXPO_PUSH_URL: str = "https://exp.host/--/api/v2/push/send"
+    EMAIL_PROVIDER: str = "console"  # console, resend, ses
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "Frankfurt Flex League <noreply@frankfurttennis.de>"
+
+    # Background Jobs & Backups
+    PROCRASTINATE_USE_IN_MEMORY: bool = False
+    BACKUP_R2_ENDPOINT_URL: str = ""
+    BACKUP_R2_BUCKET: str = "tennis-league-backups"
+    BACKUP_R2_ACCESS_KEY_ID: str = ""
+    BACKUP_R2_SECRET_ACCESS_KEY: str = ""
+    BACKUP_ENCRYPTION_KEY: str = "dev-backup-encryption-key-32-chars-long!"
+
     # Configurable League Rules (from Handbook Chapter 2.2)
     min_completed_sets: int = 1
     max_wins_vs_opponent: int = 2
@@ -62,6 +76,7 @@ class Settings(BaseSettings):
     partner_free_month_min: int = 3
     auto_confirm_match_hours: int = 48
     dispute_cooling_off_hours: int = 24
+    inactive_nudge_days: int = 7
 
 
 @lru_cache

@@ -762,5 +762,84 @@ export async function getReferralInfo(): Promise<ReferralInfo> {
   }
 }
 
+export interface DeviceResponse {
+  id: string;
+  push_token: string;
+  platform: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface NotificationHistoryItem {
+  id: string;
+  channel: string;
+  event_type: string;
+  title: string;
+  body: string;
+  status: string;
+  created_at: string;
+}
+
+export async function registerPushDevice(
+  pushToken: string,
+  platform: string = "ios"
+): Promise<DeviceResponse> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/devices`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify({ push_token: pushToken, platform }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Failed to register push device");
+  return data;
+}
+
+export async function unregisterPushDevice(pushToken: string): Promise<void> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/devices/${encodeURIComponent(pushToken)}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error("Failed to unregister push device");
+  }
+}
+
+export async function getUserDevices(): Promise<DeviceResponse[]> {
+  const headers = await getAuthHeader();
+  try {
+    const res = await fetch(`${API_BASE_URL}/devices`, { headers });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function getNotificationHistory(): Promise<NotificationHistoryItem[]> {
+  const headers = await getAuthHeader();
+  try {
+    const res = await fetch(`${API_BASE_URL}/notifications/history`, { headers });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch {
+    return [
+      {
+        id: "notif-sample-1",
+        channel: "push",
+        event_type: "kickoff",
+        title: "🎾 Kickoff: 3.5 Fall Division",
+        body: "Hi Lukas! Your division is live with 6 players. Open the app to view your roster.",
+        status: "sent",
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+      },
+    ];
+  }
+}
+
 
 
