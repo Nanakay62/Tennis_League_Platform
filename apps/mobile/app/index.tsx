@@ -258,7 +258,7 @@ export default function HomeScreen() {
 
               <Link href="/programs" asChild>
                 <TouchableOpacity
-                  style={[styles.actionListRow, styles.actionListRowLast]}
+                  style={StyleSheet.flatten([styles.actionListRow, styles.actionListRowLast])}
                   activeOpacity={0.7}
                 >
                   <View style={styles.actionRowIconContainer}>
