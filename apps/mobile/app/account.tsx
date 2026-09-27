@@ -132,7 +132,10 @@ export default function AccountScreen() {
         </Link>
 
         <Link href="/settings/delete-account" asChild>
-          <TouchableOpacity style={[styles.menuItem, styles.menuItemDanger]} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={StyleSheet.flatten([styles.menuItem, styles.menuItemDanger])}
+            activeOpacity={0.7}
+          >
             <Text style={styles.menuIcon}>🗑️</Text>
             <View style={styles.menuTextContainer}>
               <Text style={[styles.menuTitle, styles.dangerText]}>Delete My Data</Text>

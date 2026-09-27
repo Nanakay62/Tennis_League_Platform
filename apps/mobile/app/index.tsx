@@ -72,7 +72,10 @@ export default function HomeScreen() {
         </Link>
 
         <Link href="/join" asChild>
-          <TouchableOpacity style={[styles.actionCard, { borderColor: colors.primary }]} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={StyleSheet.flatten([styles.actionCard, { borderColor: colors.primary }])}
+            activeOpacity={0.8}
+          >
             <Text style={styles.actionIcon}>🛒</Text>
             <Text style={[styles.actionTitle, { color: colors.primary }]}>Join Today</Text>
             <Text style={styles.actionDesc}>Enroll in Fall Season • €34.95</Text>
