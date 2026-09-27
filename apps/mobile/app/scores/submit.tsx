@@ -5,23 +5,25 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { colors } from "../../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../../src/theme/colors";
 import {
   submitMatch,
   SubmitMatchPayload,
   SetScoreInput,
 } from "../../src/api/client";
+import { AppShell, Card, Button, Badge } from "../../src/components";
 
 type MatchFormat = "best_of_three" | "match_tiebreak" | "pro_set_10" | "fast4";
 type OutcomeType = "played" | "retired" | "walkover" | "no_show";
 
 export default function SubmitScoreScreen() {
+  const { colors } = useThemeColors();
   const params = useLocalSearchParams<{ divisionId?: string; opponentId?: string }>();
 
   const [divisionId, setDivisionId] = useState(params.divisionId || "div-comp-1");
@@ -108,524 +110,374 @@ export default function SubmitScoreScreen() {
     }
   };
 
+  const renderStepper = (
+    label: string,
+    value: number,
+    onChange: (val: number) => void,
+    min: number = 0,
+    max: number = 20
+  ) => (
+    <View style={styles.stepperContainer}>
+      <Text style={[styles.stepperLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <View style={styles.stepperControls}>
+        <TouchableOpacity
+          style={[styles.stepperBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
+          onPress={() => onChange(Math.max(min, value - 1))}
+          activeOpacity={0.7}
+        >
+          <Feather name="minus" size={16} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={[styles.stepperValue, { color: colors.textPrimary }]}>{value}</Text>
+        <TouchableOpacity
+          style={[styles.stepperBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
+          onPress={() => onChange(Math.min(max, value + 1))}
+          activeOpacity={0.7}
+        >
+          <Feather name="plus" size={16} color={colors.textPrimary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>Report Match Score</Text>
-      <Text style={styles.subheading}>
-        Enter the verified score line. Your opponent will be notified to confirm.
-      </Text>
+    <AppShell title="SUBMIT SCORE" showBack>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Report Match Score</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Enter the verified score line. Your opponent will be notified to confirm.
+        </Text>
+      </View>
 
       {errorMessage && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+        <View style={[styles.errorBox, { backgroundColor: colors.dangerBg, borderColor: colors.danger }]}>
+          <Feather name="alert-triangle" size={16} color={colors.danger} style={{ marginRight: 8 }} />
+          <Text style={[styles.errorText, { color: colors.danger }]}>{errorMessage}</Text>
         </View>
       )}
 
-      {/* Division & Opponent */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Division ID</Text>
+      {/* Match Details Card */}
+      <Card title="Match Details">
+        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Division ID</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surfaceMuted,
+              color: colors.textPrimary,
+              borderColor: colors.border,
+            },
+          ]}
           value={divisionId}
           onChangeText={setDivisionId}
           placeholder="e.g. div-comp-1"
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textMuted}
         />
 
-        <Text style={styles.label}>Opponent Player ID</Text>
+        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Opponent Player ID</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surfaceMuted,
+              color: colors.textPrimary,
+              borderColor: colors.border,
+            },
+          ]}
           value={opponentId}
           onChangeText={setOpponentId}
-          placeholder="e.g. player-uuid or profile-id"
-          placeholderTextColor="#999"
+          placeholder="e.g. player-uuid or p2"
+          placeholderTextColor={colors.textMuted}
         />
-      </View>
+      </Card>
 
-      {/* Match Result Winner Toggle */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Match Outcome</Text>
-        <View style={styles.toggleRow}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, iAmWinner && styles.toggleBtnActive]}
+      {/* Outcome & Format Card */}
+      <Card title="Outcome & Format">
+        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Winner</Text>
+        <View style={styles.btnRow}>
+          <Button
+            variant={iAmWinner ? "primary" : "secondary"}
+            size="md"
             onPress={() => setIAmWinner(true)}
+            icon="award"
+            style={{ flex: 1 }}
           >
-            <Text style={[styles.toggleBtnText, iAmWinner && styles.toggleBtnTextActive]}>
-              🏆 I Won
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, !iAmWinner && styles.toggleBtnActive]}
+            I Won
+          </Button>
+          <Button
+            variant={!iAmWinner ? "primary" : "secondary"}
+            size="md"
             onPress={() => setIAmWinner(false)}
+            icon="user"
+            style={{ flex: 1 }}
           >
-            <Text style={[styles.toggleBtnText, !iAmWinner && styles.toggleBtnTextActive]}>
-              🤝 Opponent Won
-            </Text>
-          </TouchableOpacity>
+            Opponent Won
+          </Button>
         </View>
-      </View>
 
-      {/* Match Format */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Match Format</Text>
-        <View style={styles.chipsRow}>
-          {(
-            [
-              { key: "best_of_three", label: "Best of 3 Sets" },
-              { key: "match_tiebreak", label: "Match Tiebreak (10-pt)" },
-              { key: "pro_set_10", label: "10-Game Pro Set" },
-              { key: "fast4", label: "Fast4" },
-            ] as const
-          ).map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.chip, format === item.key && styles.chipActive]}
-              onPress={() => setFormat(item.key)}
+        <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 14 }]}>Match Format</Text>
+        <View style={styles.formatWrap}>
+          {[
+            { id: "best_of_three", label: "Best of 3 Sets" },
+            { id: "match_tiebreak", label: "2 Sets + 10-pt TB" },
+            { id: "pro_set_10", label: "10-Game Pro Set" },
+            { id: "fast4", label: "Fast4" },
+          ].map((fmt) => (
+            <Button
+              key={fmt.id}
+              variant={format === fmt.id ? "primary" : "secondary"}
+              size="sm"
+              onPress={() => setFormat(fmt.id as MatchFormat)}
+              style={styles.chipBtn}
             >
-              <Text style={[styles.chipText, format === item.key && styles.chipTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
+              {fmt.label}
+            </Button>
           ))}
         </View>
-      </View>
 
-      {/* Outcome Type */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Play Status</Text>
-        <View style={styles.chipsRow}>
-          {(
-            [
-              { key: "played", label: "Full Match" },
-              { key: "retired", label: "Retirement" },
-              { key: "no_show", label: "No-Show (Walkover)" },
-              { key: "walkover", label: "Mutual Forfeit" },
-            ] as const
-          ).map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.chip, outcomeType === item.key && styles.chipActive]}
-              onPress={() => setOutcomeType(item.key)}
+        <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 14 }]}>Outcome Type</Text>
+        <View style={styles.formatWrap}>
+          {[
+            { id: "played", label: "Played Normally" },
+            { id: "retired", label: "Opponent Retired" },
+            { id: "no_show", label: "No-Show / Late Cancel" },
+          ].map((out) => (
+            <Button
+              key={out.id}
+              variant={outcomeType === out.id ? "primary" : "secondary"}
+              size="sm"
+              onPress={() => setOutcomeType(out.id as OutcomeType)}
+              style={styles.chipBtn}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  outcomeType === item.key && styles.chipTextActive,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
+              {out.label}
+            </Button>
           ))}
         </View>
-      </View>
+      </Card>
 
-      {/* Conditional Inputs: No-Show */}
-      {outcomeType === "no_show" && (
-        <View style={styles.section}>
-          <Text style={styles.label}>Minutes Waited at Court (Handbook Rule: min 20 min)</Text>
-          <View style={styles.stepperRow}>
-            <TouchableOpacity
-              style={styles.stepBtn}
-              onPress={() => setMinutesWaited(Math.max(0, minutesWaited - 5))}
-            >
-              <Text style={styles.stepBtnText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.stepValue}>{minutesWaited} min</Text>
-            <TouchableOpacity
-              style={styles.stepBtn}
-              onPress={() => setMinutesWaited(minutesWaited + 5)}
-            >
-              <Text style={styles.stepBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-          {minutesWaited < 20 && (
-            <Text style={styles.warningText}>
-              ⚠️ League rules require waiting at least 20 minutes past scheduled match time before claiming a walkover.
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Conditional Inputs: Retirement Notes */}
-      {outcomeType === "retired" && (
-        <View style={styles.section}>
-          <Text style={styles.label}>Retirement Reason</Text>
-          <TextInput
-            style={styles.input}
-            value={retirementNotes}
-            onChangeText={setRetirementNotes}
-            placeholder="e.g. Ankle sprain in 2nd set"
-            placeholderTextColor="#999"
-          />
-        </View>
-      )}
-
-      {/* Score Steppers */}
+      {/* Set Scores Card */}
       {(outcomeType === "played" || outcomeType === "retired") && (
-        <View style={styles.section}>
-          <Text style={styles.label}>Set Scores (Winner - Loser)</Text>
-
+        <Card title="Set Scores">
           {/* Set 1 */}
           <View style={styles.setRow}>
-            <Text style={styles.setText}>Set 1:</Text>
-            <View style={styles.stepperRowSmall}>
-              <TouchableOpacity
-                style={styles.stepBtnSmall}
-                onPress={() => setSet1Winner(Math.max(0, set1Winner - 1))}
-              >
-                <Text style={styles.stepBtnText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.stepValueSmall}>{set1Winner}</Text>
-              <TouchableOpacity
-                style={styles.stepBtnSmall}
-                onPress={() => setSet1Winner(set1Winner + 1)}
-              >
-                <Text style={styles.stepBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.setDivider}>-</Text>
-            <View style={styles.stepperRowSmall}>
-              <TouchableOpacity
-                style={styles.stepBtnSmall}
-                onPress={() => setSet1Loser(Math.max(0, set1Loser - 1))}
-              >
-                <Text style={styles.stepBtnText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.stepValueSmall}>{set1Loser}</Text>
-              <TouchableOpacity
-                style={styles.stepBtnSmall}
-                onPress={() => setSet1Loser(set1Loser + 1)}
-              >
-                <Text style={styles.stepBtnText}>+</Text>
-              </TouchableOpacity>
+            <Text style={[styles.setTitle, { color: colors.textPrimary }]}>Set 1</Text>
+            <View style={styles.steppersRow}>
+              {renderStepper("Winner Games", set1Winner, setSet1Winner, 0, 15)}
+              {renderStepper("Loser Games", set1Loser, setSet1Loser, 0, 15)}
             </View>
           </View>
 
-          {/* Set 2 (if not Pro Set) */}
+          {/* Set 2 (if not pro set) */}
           {format !== "pro_set_10" && (
-            <View style={styles.setRow}>
-              <Text style={styles.setText}>Set 2:</Text>
-              <View style={styles.stepperRowSmall}>
-                <TouchableOpacity
-                  style={styles.stepBtnSmall}
-                  onPress={() => setSet2Winner(Math.max(0, set2Winner - 1))}
-                >
-                  <Text style={styles.stepBtnText}>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.stepValueSmall}>{set2Winner}</Text>
-                <TouchableOpacity
-                  style={styles.stepBtnSmall}
-                  onPress={() => setSet2Winner(set2Winner + 1)}
-                >
-                  <Text style={styles.stepBtnText}>+</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.setDivider}>-</Text>
-              <View style={styles.stepperRowSmall}>
-                <TouchableOpacity
-                  style={styles.stepBtnSmall}
-                  onPress={() => setSet2Loser(Math.max(0, set2Loser - 1))}
-                >
-                  <Text style={styles.stepBtnText}>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.stepValueSmall}>{set2Loser}</Text>
-                <TouchableOpacity
-                  style={styles.stepBtnSmall}
-                  onPress={() => setSet2Loser(set2Loser + 1)}
-                >
-                  <Text style={styles.stepBtnText}>+</Text>
-                </TouchableOpacity>
+            <View style={[styles.setRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+              <Text style={[styles.setTitle, { color: colors.textPrimary }]}>Set 2</Text>
+              <View style={styles.steppersRow}>
+                {renderStepper("Winner Games", set2Winner, setSet2Winner, 0, 15)}
+                {renderStepper("Loser Games", set2Loser, setSet2Loser, 0, 15)}
               </View>
             </View>
           )}
 
-          {/* Optional Set 3 / Match Tiebreak */}
+          {/* Set 3 Toggle & Steppers */}
           {format !== "pro_set_10" && (
-            <View style={styles.set3ToggleContainer}>
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setHasSet3(!hasSet3)}
-              >
-                <Text style={styles.checkboxIcon}>{hasSet3 ? "☑️" : "⬜"}</Text>
-                <Text style={styles.checkboxLabel}>
-                  {format === "match_tiebreak"
-                    ? "Match Tiebreak (3rd Set 10-Point TB)"
-                    : "Deciding 3rd Set Played"}
+            <View style={[styles.setRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+              <View style={styles.set3Header}>
+                <Text style={[styles.setTitle, { color: colors.textPrimary }]}>
+                  {format === "match_tiebreak" ? "10-Point Super Tiebreak" : "Set 3 (Decider)"}
                 </Text>
-              </TouchableOpacity>
+                <Button
+                  variant={hasSet3 ? "primary" : "secondary"}
+                  size="sm"
+                  onPress={() => setHasSet3(!hasSet3)}
+                >
+                  {hasSet3 ? "Remove" : "+ Add Set 3"}
+                </Button>
+              </View>
 
               {hasSet3 && (
-                <View style={styles.setRow}>
-                  <Text style={styles.setText}>
-                    {format === "match_tiebreak" ? "TB:" : "Set 3:"}
-                  </Text>
-                  <View style={styles.stepperRowSmall}>
-                    <TouchableOpacity
-                      style={styles.stepBtnSmall}
-                      onPress={() => setSet3Winner(Math.max(0, set3Winner - 1))}
-                    >
-                      <Text style={styles.stepBtnText}>-</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.stepValueSmall}>{set3Winner}</Text>
-                    <TouchableOpacity
-                      style={styles.stepBtnSmall}
-                      onPress={() => setSet3Winner(set3Winner + 1)}
-                    >
-                      <Text style={styles.stepBtnText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.setDivider}>-</Text>
-                  <View style={styles.stepperRowSmall}>
-                    <TouchableOpacity
-                      style={styles.stepBtnSmall}
-                      onPress={() => setSet3Loser(Math.max(0, set3Loser - 1))}
-                    >
-                      <Text style={styles.stepBtnText}>-</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.stepValueSmall}>{set3Loser}</Text>
-                    <TouchableOpacity
-                      style={styles.stepBtnSmall}
-                      onPress={() => setSet3Loser(set3Loser + 1)}
-                    >
-                      <Text style={styles.stepBtnText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
+                <View style={[styles.steppersRow, { marginTop: 10 }]}>
+                  {renderStepper(
+                    format === "match_tiebreak" ? "Winner Points" : "Winner Games",
+                    set3Winner,
+                    setSet3Winner,
+                    0,
+                    30
+                  )}
+                  {renderStepper(
+                    format === "match_tiebreak" ? "Loser Points" : "Loser Games",
+                    set3Loser,
+                    setSet3Loser,
+                    0,
+                    30
+                  )}
                 </View>
               )}
             </View>
           )}
-        </View>
+        </Card>
       )}
 
-      {/* Submit Button */}
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitButtonText}>Submit Score</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+      {/* No-show details */}
+      {outcomeType === "no_show" && (
+        <Card title="No-Show Verification">
+          <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Minutes Waited at Court</Text>
+          {renderStepper("Minutes Waited (Rule: min 20m)", minutesWaited, setMinutesWaited, 20, 120)}
+          <Text style={[styles.hintText, { color: colors.textSecondary }]}>
+            League policy requires waiting at least 20 minutes before filing a no-show report. 0-0 win will be recorded.
+          </Text>
+        </Card>
+      )}
+
+      {/* Retirement details */}
+      {outcomeType === "retired" && (
+        <Card title="Retirement Details">
+          <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Notes (Injury, Heat, Walkoff)</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+                borderColor: colors.border,
+              },
+            ]}
+            value={retirementNotes}
+            onChangeText={setRetirementNotes}
+            placeholder="e.g. Retired in 2nd set due to ankle strain"
+            placeholderTextColor={colors.textMuted}
+          />
+        </Card>
+      )}
+
+      {/* Actions */}
+      <View style={styles.actionsContainer}>
+        <Button
+          variant="primary"
+          size="lg"
+          onPress={handleSubmit}
+          loading={loading}
+          icon="check-circle"
+        >
+          Submit Score for Confirmation
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="md"
+          onPress={() => router.back()}
+          disabled={loading}
+          style={{ marginTop: 8 }}
+        >
+          Cancel
+        </Button>
+      </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 4,
-  },
-  subheading: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 20,
-  },
-  errorBox: {
-    backgroundColor: "#ffebee",
-    padding: 12,
-    borderRadius: 8,
+  header: {
     marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.danger,
   },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
     fontWeight: "500",
   },
-  section: {
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    marginBottom: 16,
   },
-  label: {
-    fontSize: 14,
+  errorText: {
+    fontSize: 13,
     fontWeight: "600",
-    color: colors.text,
-    marginBottom: 8,
+    flex: 1,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
   },
   input: {
     height: 44,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: "#fff",
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 14,
     marginBottom: 12,
   },
-  toggleRow: {
+  btnRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
+    marginBottom: 6,
   },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    backgroundColor: colors.surfaceSecondary,
-  },
-  toggleBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  toggleBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  toggleBtnTextActive: {
-    color: "#fff",
-  },
-  chipsRow: {
+  formatWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginBottom: 6,
   },
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: colors.text,
-  },
-  chipTextActive: {
-    color: "#fff",
-  },
-  stepperRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    marginVertical: 6,
-  },
-  stepBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepBtnText: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  stepValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  warningText: {
-    fontSize: 13,
-    color: "#e65100",
-    marginTop: 6,
+  chipBtn: {
+    marginBottom: 4,
   },
   setRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 8,
-    justifyContent: "space-between",
+    paddingVertical: 12,
   },
-  setText: {
-    fontSize: 15,
+  setTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  steppersRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  stepperContainer: {
+    flex: 1,
+  },
+  stepperLabel: {
+    fontSize: 11,
     fontWeight: "600",
-    color: colors.text,
-    width: 60,
+    marginBottom: 4,
   },
-  stepperRowSmall: {
+  stepperControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
   },
-  stepBtnSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceSecondary,
+  stepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepValueSmall: {
-    fontSize: 17,
-    fontWeight: "700",
-    width: 24,
-    textAlign: "center",
-    color: colors.text,
-  },
-  setDivider: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: colors.textMuted,
-    marginHorizontal: 8,
-  },
-  set3ToggleContainer: {
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 10,
-  },
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  checkboxIcon: {
-    fontSize: 18,
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-  },
-  submitButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: "#fff",
+  stepperValue: {
     fontSize: 16,
     fontWeight: "700",
+    width: 36,
+    textAlign: "center",
+  },
+  set3Header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  hintText: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 8,
+  },
+  actionsContainer: {
+    marginTop: 8,
+    marginBottom: 32,
   },
 });

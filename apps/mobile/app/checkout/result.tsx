@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { colors } from "../../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../../src/theme/colors";
 import { API_BASE_URL } from "../../src/api/client";
+import { AppShell, Card, Button, Badge } from "../../src/components";
 
 export default function CheckoutResultScreen() {
+  const { colors } = useThemeColors();
   const router = useRouter();
   const { session_id, order_id } = useLocalSearchParams<{
     session_id: string;
@@ -53,175 +56,164 @@ export default function CheckoutResultScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Verifying enrollment with Stripe...</Text>
-      </View>
+      <AppShell title="CONFIRMATION">
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Verifying enrollment confirmation...
+          </Text>
+        </View>
+      </AppShell>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.checkmark}>✓</Text>
-        </View>
-        <Text style={styles.title}>You're Enrolled!</Text>
-        <Text style={styles.subtitle}>
-          Welcome to Frankfurt Tennis League. Your season enrollment is confirmed.
-        </Text>
-
-        <View style={styles.infoBox}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Status</Text>
-            <Text style={styles.statusSuccess}>Paid & Confirmed</Text>
+    <AppShell title="CONFIRMATION">
+      <View style={styles.wrapper}>
+        <Card style={styles.confirmationCard} contentStyle={styles.cardContent}>
+          <View style={[styles.iconCircle, { backgroundColor: colors.accentSecondary }]}>
+            <Feather name="check" size={28} color={colors.primary} />
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Order Reference</Text>
-            <Text style={styles.infoVal}>{(order_id || "ORD-TEST").slice(0, 12)}</Text>
+
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            You're Enrolled!
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Welcome to Frankfurt Tennis League. Your season enrollment is confirmed.
+          </Text>
+
+          <View style={[styles.infoBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Status</Text>
+              <Badge label="Paid & Confirmed" variant="success" icon="check-circle" size="sm" />
+            </View>
+
+            <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Order Reference</Text>
+              <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
+                {(order_id || "ORD-TEST").slice(0, 16)}
+              </Text>
+            </View>
+
+            <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Market</Text>
+              <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
+                Frankfurt am Main
+              </Text>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Market</Text>
-            <Text style={styles.infoVal}>Frankfurt am Main</Text>
+
+          <View style={styles.noticeRow}>
+            <Feather name="info" size={14} color={colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
+            <Text style={[styles.nextStepsText, { color: colors.textSecondary }]}>
+              What happens next: Division placements and opponent rosters will be published on kickoff day.
+            </Text>
           </View>
-        </View>
 
-        <Text style={styles.nextStepsText}>
-          🎾 What happens next: You will receive division placement and opponent contact details on kickoff day!
-        </Text>
+          <View style={styles.actionsRow}>
+            <Button
+              variant="primary"
+              size="lg"
+              onPress={() => router.replace("/divisions/div-comp-1")}
+              iconRight="arrow-right"
+              style={{ width: "100%", marginBottom: 10 }}
+            >
+              View Division Standings
+            </Button>
 
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={() => router.replace("/divisions/div-comp-1")}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.primaryBtnText}>View Division Standings</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryBtn}
-          onPress={() => router.replace("/")}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.secondaryBtnText}>Return to Home</Text>
-        </TouchableOpacity>
+            <Button
+              variant="secondary"
+              size="md"
+              onPress={() => router.replace("/")}
+              style={{ width: "100%" }}
+            >
+              Return to Home
+            </Button>
+          </View>
+        </Card>
       </View>
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    justifyContent: "center",
+  wrapper: {
     alignItems: "center",
-    backgroundColor: colors.background,
+    justifyContent: "center",
+    paddingVertical: 24,
+  },
+  loadingContainer: {
+    padding: 64,
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 14,
-    color: colors.textSecondary,
   },
-  card: {
+  confirmationCard: {
     width: "100%",
-    maxWidth: 480,
-    backgroundColor: colors.surface,
-    padding: 24,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
+    maxWidth: 500,
+  },
+  cardContent: {
     alignItems: "center",
+    padding: 24,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.badgeBg,
-    justifyContent: "center",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 16,
-  },
-  checkmark: {
-    fontSize: 32,
-    color: colors.primary,
-    fontWeight: "bold",
   },
   title: {
     fontSize: 22,
     fontWeight: "800",
-    color: colors.text,
+    letterSpacing: -0.3,
     marginBottom: 6,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
     textAlign: "center",
-    lineHeight: 20,
     marginBottom: 20,
+    lineHeight: 20,
   },
   infoBox: {
     width: "100%",
-    backgroundColor: colors.surfaceSecondary,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
     marginBottom: 16,
   },
   infoRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    paddingVertical: 10,
   },
   infoLabel: {
     fontSize: 13,
-    color: colors.textSecondary,
+    fontWeight: "500",
   },
   infoVal: {
     fontSize: 13,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  statusSuccess: {
-    fontSize: 13,
     fontWeight: "700",
-    color: colors.success,
+  },
+  noticeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 24,
+    paddingHorizontal: 4,
   },
   nextStepsText: {
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontSize: 12,
     lineHeight: 18,
-    textAlign: "center",
-    marginBottom: 20,
+    flex: 1,
   },
-  primaryBtn: {
+  actionsRow: {
     width: "100%",
-    height: 46,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  primaryBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  secondaryBtn: {
-    width: "100%",
-    height: 44,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  secondaryBtnText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

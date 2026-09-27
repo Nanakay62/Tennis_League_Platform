@@ -4,17 +4,19 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { colors } from "../src/theme/colors";
+import { Feather } from "@expo/vector-icons";
+import { useThemeColors } from "../src/theme/colors";
 import { API_BASE_URL, getPrograms, Program } from "../src/api/client";
 import { getAccessToken } from "../src/lib/auth";
+import { AppShell, Card, Button, Badge } from "../src/components";
 
 export default function JoinTodayScreen() {
+  const { colors } = useThemeColors();
   const router = useRouter();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -133,255 +135,260 @@ export default function JoinTodayScreen() {
     }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Join Frankfurt League</Text>
-      <Text style={styles.subtitle}>
-        Select your season packages. Pricing is calculated dynamically with all eligible credits applied.
-      </Text>
-
-      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Available Programs</Text>
+    <AppShell title="JOIN TODAY" showBack>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Join Frankfurt League
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Select your season package. Guaranteed minimum 6 playing partners.
+        </Text>
       </View>
 
-      {programs.map((item) => {
-        const isSelected = selectedIds.includes(item.id);
-        return (
-          <TouchableOpacity
-            key={item.id}
-            style={[styles.programRow, isSelected && styles.programRowActive]}
-            onPress={() => toggleProgram(item.id)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
-              {isSelected ? <Text style={styles.checkmark}>✓</Text> : null}
-            </View>
-            <View style={styles.programInfo}>
-              <View style={styles.titleRow}>
-                <Text style={styles.programName}>{item.name}</Text>
-                <Text style={styles.priceTag}>€{(item.priceCents / 100).toFixed(2)}</Text>
+      {errorMsg ? (
+        <View style={[styles.errorBox, { backgroundColor: colors.dangerBg, borderColor: colors.danger }]}>
+          <Feather name="alert-triangle" size={16} color={colors.danger} style={{ marginRight: 8 }} />
+          <Text style={[styles.errorText, { color: colors.danger }]}>{errorMsg}</Text>
+        </View>
+      ) : null}
+
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <View style={styles.contentWrap}>
+          {/* Programs selection list */}
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Available Seasons
+          </Text>
+
+          {programs.map((item) => {
+            const isSelected = selectedIds.includes(item.id);
+
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.programCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                  isSelected && { borderWidth: 2 },
+                ]}
+                onPress={() => toggleProgram(item.id)}
+                activeOpacity={0.8}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    {
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      backgroundColor: isSelected ? colors.primary : "transparent",
+                    },
+                  ]}
+                >
+                  {isSelected ? <Feather name="check" size={14} color="#ffffff" /> : null}
+                </View>
+
+                <View style={styles.programDetails}>
+                  <View style={styles.programTitleRow}>
+                    <Text
+                      style={[styles.programName, { color: colors.textPrimary }]}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.priceTag, { color: colors.primary }]}>
+                      €{(item.priceCents / 100).toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.programMetaRow}>
+                    <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                      {item.startDate} to {item.endDate}
+                    </Text>
+                    <Badge label={item.status} variant="success" size="sm" />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* Order Summary & Checkout Card */}
+          {quote && (
+            <Card title="Order Summary" style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Subtotal</Text>
+                <Text style={[styles.summaryVal, { color: colors.textPrimary }]}>
+                  €{quote.subtotal.toFixed(2)}
+                </Text>
               </View>
-              <Text style={styles.programDates}>
-                {item.startDate} to {item.endDate} • {item.status}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
 
-      {/* Quote summary card */}
-      {quote && (
-        <View style={styles.quoteCard}>
-          <Text style={styles.quoteHeader}>Order Summary</Text>
-          <View style={styles.quoteRow}>
-            <Text style={styles.quoteLabel}>Subtotal</Text>
-            <Text style={styles.quoteVal}>€{quote.subtotal.toFixed(2)}</Text>
-          </View>
-          {quote.discount > 0 && (
-            <View style={styles.quoteRow}>
-              <Text style={[styles.quoteLabel, styles.discountText]}>Credit Applied</Text>
-              <Text style={[styles.quoteVal, styles.discountText]}>
-                -€{quote.discount.toFixed(2)}
-              </Text>
-            </View>
-          )}
-          <View style={[styles.quoteRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Final Cost</Text>
-            <Text style={styles.totalVal}>€{quote.finalCost.toFixed(2)}</Text>
-          </View>
+              {quote.discount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: colors.success }]}>
+                    Credit / Discount Applied
+                  </Text>
+                  <Text style={[styles.summaryVal, { color: colors.success }]}>
+                    -€{quote.discount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
 
-          <TouchableOpacity
-            style={[styles.checkoutBtn, checkoutLoading && styles.btnDisabled]}
-            onPress={handleCheckout}
-            disabled={checkoutLoading}
-            activeOpacity={0.8}
-          >
-            {checkoutLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.checkoutBtnText}>
+              <View style={[styles.totalRow, { borderTopColor: colors.borderSubtle }]}>
+                <Text style={[styles.totalLabel, { color: colors.textPrimary }]}>Final Cost</Text>
+                <Text style={[styles.totalVal, { color: colors.primary }]}>
+                  €{quote.finalCost.toFixed(2)}
+                </Text>
+              </View>
+
+              <Button
+                variant="primary"
+                size="lg"
+                onPress={handleCheckout}
+                loading={checkoutLoading}
+                icon="credit-card"
+                style={styles.checkoutBtn}
+              >
                 Pay with Stripe • €{quote.finalCost.toFixed(2)}
-              </Text>
-            )}
-          </TouchableOpacity>
+              </Button>
+            </Card>
+          )}
         </View>
       )}
-    </ScrollView>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    maxWidth: 640,
-    width: "100%",
-    alignSelf: "center",
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  header: {
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
-    color: colors.text,
-    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  errorText: {
-    color: colors.danger,
-    backgroundColor: "#ffebee",
-    padding: 10,
-    borderRadius: 6,
-    marginBottom: 16,
     fontSize: 13,
+    marginTop: 2,
+    fontWeight: "500",
   },
-  sectionHeader: {
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  programRow: {
+  errorBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+  loadingBox: {
+    padding: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  contentWrap: {
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  programCard: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
     marginBottom: 10,
   },
-  programRowActive: {
-    borderColor: colors.primary,
-    backgroundColor: "#f4fbf5",
-  },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 24,
+    height: 24,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: "center",
+    borderWidth: 1.5,
     alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
-    backgroundColor: colors.surface,
   },
-  checkboxActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkmark: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "bold",
-  },
-  programInfo: {
+  programDetails: {
     flex: 1,
   },
-  titleRow: {
+  programTitleRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 4,
   },
   programName: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.text,
+    flex: 1,
+    marginRight: 8,
   },
   priceTag: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
-    color: colors.primary,
   },
-  programDates: {
+  programMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  metaText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    fontWeight: "500",
   },
-  quoteCard: {
-    backgroundColor: colors.surface,
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 16,
+  summaryCard: {
+    marginTop: 8,
     marginBottom: 24,
   },
-  quoteHeader: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 14,
-  },
-  quoteRow: {
+  summaryRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    marginBottom: 10,
   },
-  quoteLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  summaryLabel: {
+    fontSize: 13,
+    fontWeight: "500",
   },
-  quoteVal: {
+  summaryVal: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.text,
-  },
-  discountText: {
-    color: colors.success,
-    fontWeight: "700",
   },
   totalRow: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 12,
-    marginTop: 8,
+    marginTop: 6,
+    borderTopWidth: 1,
     marginBottom: 16,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: "800",
-    color: colors.text,
+    fontWeight: "700",
   },
   totalVal: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "800",
-    color: colors.primary,
   },
   checkoutBtn: {
-    height: 48,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  checkoutBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
+    width: "100%",
   },
 });
