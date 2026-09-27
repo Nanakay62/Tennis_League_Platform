@@ -158,3 +158,212 @@ export async function getDivisionStandings(divisionId: string): Promise<Standing
     ];
   }
 }
+
+export interface SetScoreInput {
+  winner: number;
+  loser: number;
+  super_tiebreak?: boolean;
+}
+
+export interface SubmitMatchPayload {
+  division_id: string;
+  opponent_id: string;
+  i_am_winner: boolean;
+  format: "best_of_three" | "match_tiebreak" | "pro_set_10" | "fast4";
+  outcome_type: "played" | "retired" | "walkover" | "no_show";
+  sets: SetScoreInput[];
+  minutes_waited?: number;
+  retirement_notes?: string;
+}
+
+export interface MatchResponse {
+  id: string;
+  division_id: string;
+  winner_id: string;
+  loser_id: string;
+  winner_name: string;
+  loser_name: string;
+  format: string;
+  outcome_type: string;
+  sets_summary: string;
+  status: string;
+  played_at: string;
+}
+
+export interface LatestScoreFeedItem {
+  id: string;
+  division_id: string;
+  division_name: string;
+  winner_name: string;
+  loser_name: string;
+  format: string;
+  outcome_type: string;
+  score_line: string;
+  played_at: string;
+}
+
+export interface RosterPlayerResponse {
+  player_id: string;
+  display_name: string;
+  home_area: string | null;
+  rating: string | null;
+  is_daytime: boolean;
+  phone: string | null;
+  email: string | null;
+}
+
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
+
+async function getAuthHeader(): Promise<Record<string, string>> {
+  try {
+    let token: string | null = null;
+    if (Platform.OS === "web") {
+      token = localStorage.getItem("tennis_access_token");
+    } else {
+      token = await SecureStore.getItemAsync("tennis_access_token");
+    }
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function submitMatch(payload: SubmitMatchPayload): Promise<MatchResponse> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/matches`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to submit match score");
+  }
+  return data;
+}
+
+export async function confirmMatch(matchId: string): Promise<{ status: string; match_status: string }> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/matches/${matchId}/confirm`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to confirm match");
+  }
+  return data;
+}
+
+export async function disputeMatch(
+  matchId: string,
+  reason: string
+): Promise<{ status: string; dispute_id: string; cooling_off_until: string }> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/matches/${matchId}/dispute`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to dispute match");
+  }
+  return data;
+}
+
+export async function getLatestScoresFeed(): Promise<LatestScoreFeedItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/scores/latest`);
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // Fallback sample feed
+    return [
+      {
+        id: "m-sample-1",
+        division_id: "div-comp-1",
+        division_name: "Competitive (3.5)",
+        winner_name: "Lukas Schmidt",
+        loser_name: "Maximilian Weber",
+        format: "best_of_three",
+        outcome_type: "played",
+        score_line: "6-3; 6-4",
+        played_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+      },
+      {
+        id: "m-sample-2",
+        division_id: "div-comp-1",
+        division_name: "Competitive (3.5)",
+        winner_name: "Felix Fischer",
+        loser_name: "Stefan Meyer",
+        format: "match_tiebreak",
+        outcome_type: "played",
+        score_line: "6-4; 3-6; TB 10-7",
+        played_at: new Date(Date.now() - 3600000 * 20).toISOString(),
+      },
+    ];
+  }
+}
+
+export async function getDivisionRoster(divisionId: string): Promise<{ players: RosterPlayerResponse[]; gated: boolean }> {
+  const headers = await getAuthHeader();
+  try {
+    const res = await fetch(`${API_BASE_URL}/divisions/${divisionId}/roster`, {
+      headers,
+    });
+
+    if (res.status === 403) {
+      return { players: [], gated: true };
+    }
+
+    if (!res.ok) {
+      throw new Error(`HTTP error: ${res.status}`);
+    }
+
+    const players = await res.json();
+    return { players, gated: false };
+  } catch (err: any) {
+    if (err?.message?.includes("403")) {
+      return { players: [], gated: true };
+    }
+    // Fallback sample players
+    return {
+      players: [
+        {
+          player_id: "p1",
+          display_name: "Lukas Schmidt",
+          home_area: "Sachsenhausen",
+          rating: "3.5",
+          is_daytime: true,
+          phone: "+49 69 111111",
+          email: "lukas@example.com",
+        },
+        {
+          player_id: "p2",
+          display_name: "Maximilian Weber",
+          home_area: "Westend",
+          rating: "3.5",
+          is_daytime: false,
+          phone: "+49 69 222222",
+          email: "max@example.com",
+        },
+      ],
+      gated: false,
+    };
+  }
+}
+

@@ -51,6 +51,13 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 @pytest.fixture
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an active db session for tests that need direct database access."""
+    async with TestingSessionLocal() as session:
+        yield session
+
+
+@pytest.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac

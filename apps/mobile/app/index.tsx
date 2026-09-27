@@ -31,6 +31,22 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Link>
 
+        <Link href="/scores" asChild>
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8}>
+            <Text style={styles.actionIcon}>⚡</Text>
+            <Text style={styles.actionTitle}>Latest Results</Text>
+            <Text style={styles.actionDesc}>Live match results feed</Text>
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="/scores/submit" asChild>
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8}>
+            <Text style={styles.actionIcon}>📝</Text>
+            <Text style={styles.actionTitle}>Report Score</Text>
+            <Text style={styles.actionDesc}>Submit sets & validate</Text>
+          </TouchableOpacity>
+        </Link>
+
         <Link href="/join" asChild>
           <TouchableOpacity style={[styles.actionCard, { borderColor: colors.primary }]} activeOpacity={0.8}>
             <Text style={styles.actionIcon}>🛒</Text>

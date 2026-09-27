@@ -36,7 +36,9 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ title: "Frankfurt Tennis League" }} />
           <Stack.Screen name="programs/index" options={{ title: "Programs" }} />
           <Stack.Screen name="programs/[programId]" options={{ title: "Select Division" }} />
-          <Stack.Screen name="divisions/[divisionId]" options={{ title: "Standings" }} />
+          <Stack.Screen name="divisions/[divisionId]" options={{ title: "Division" }} />
+          <Stack.Screen name="scores/index" options={{ title: "Latest Scores" }} />
+          <Stack.Screen name="scores/submit" options={{ title: "Report Score" }} />
         </Stack>
       </QueryClientProvider>
     </SafeAreaProvider>
