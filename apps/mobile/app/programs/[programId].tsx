@@ -1,92 +1,83 @@
 import React from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from "react-native";
-import { useLocalSearchParams, Link } from "expo-router";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { getProgramDivisions } from "../../src/api/client";
-import { colors } from "../../src/theme/colors";
+import { useThemeColors } from "../../src/theme/colors";
+import { AppShell, Card, ListRow, EmptyState } from "../../src/components";
 
 export default function ProgramDivisionsScreen() {
+  const { colors } = useThemeColors();
   const { programId } = useLocalSearchParams<{ programId: string }>();
 
-  const { data: divisions, refetch, isRefetching } = useQuery({
+  const { data: divisions, isLoading, refetch } = useQuery({
     queryKey: ["divisions", programId],
     queryFn: () => getProgramDivisions(programId || "default"),
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Select Your Division</Text>
-      <Text style={styles.subtitle}>
-        View current standings, match results, and rosters.
-      </Text>
+    <AppShell title="SELECT DIVISION" showBack>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Skill Divisions
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Select a division to view current standings, schedules, and active rosters.
+        </Text>
+      </View>
 
-      <FlatList
-        data={divisions}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-        }
-        renderItem={({ item }) => (
-          <Link href={`/divisions/${item.id}`} asChild>
-            <TouchableOpacity style={styles.rowCard} activeOpacity={0.7}>
-              <View>
-                <Text style={styles.divisionName}>{item.name}</Text>
-                <Text style={styles.divisionDetails}>
-                  NTRP {item.ratingBand} • {item.playersCount} Enrolled Players
-                </Text>
-              </View>
-              <Text style={styles.arrow}>View Standings →</Text>
-            </TouchableOpacity>
-          </Link>
-        )}
-      />
-    </View>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : divisions && divisions.length > 0 ? (
+        <Card title="Available Divisions" noPadding>
+          {divisions.map((item, idx) => (
+            <ListRow
+              key={item.id}
+              icon="shield"
+              title={item.name}
+              subtitle={`NTRP ${item.ratingBand} • ${item.playersCount} Enrolled Players`}
+              badge={`NTRP ${item.ratingBand}`}
+              href={`/divisions/${item.id}`}
+              isLast={idx === divisions.length - 1}
+            />
+          ))}
+        </Card>
+      ) : (
+        <Card>
+          <EmptyState
+            icon="shield"
+            title="No Divisions Found"
+            message="No active divisions were found for this program. Divisions are created on kickoff day based on enrolled players."
+            action={{
+              label: "Refresh",
+              onPress: () => refetch(),
+            }}
+          />
+        </Card>
+      )}
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    maxWidth: 900,
-    width: "100%",
-    alignSelf: "center",
+  header: {
+    marginBottom: 16,
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 4,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  rowCard: {
-    backgroundColor: colors.surface,
-    padding: 18,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  divisionName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 2,
-  },
-  divisionDetails: {
     fontSize: 13,
-    color: colors.textSecondary,
+    marginTop: 2,
+    fontWeight: "500",
   },
-  arrow: {
-    color: colors.primary,
-    fontWeight: "600",
-    fontSize: 14,
+  loadingContainer: {
+    padding: 48,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

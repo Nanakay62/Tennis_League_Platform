@@ -1,120 +1,216 @@
-import React from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, RefreshControl, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { getPrograms } from "../../src/api/client";
-import { colors } from "../../src/theme/colors";
+import { useThemeColors } from "../../src/theme/colors";
+import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
+
+type TabMode = "browse" | "mine";
 
 export default function ProgramsScreen() {
+  const { colors } = useThemeColors();
+  const [activeTab, setActiveTab] = useState<TabMode>("browse");
+
   const { data: programs, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["programs"],
     queryFn: getPrograms,
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Available Seasons & Programs</Text>
-      <Text style={styles.headerSubtitle}>
-        Join an upcoming flex season or view current standings.
-      </Text>
+    <AppShell title="PROGRAMS">
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Seasons & Programs
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Join an upcoming flex singles season or view divisions.
+        </Text>
+      </View>
 
-      <FlatList
-        data={programs}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-        }
-        renderItem={({ item }) => (
-          <Link href={`/programs/${item.id}`} asChild>
-            <TouchableOpacity style={styles.card} activeOpacity={0.7}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.statusBadge}>{item.status}</Text>
-                <Text style={styles.price}>
-                  €{(item.priceCents / 100).toFixed(2)}
-                </Text>
-              </View>
-              <Text style={styles.programName}>{item.name}</Text>
-              <Text style={styles.dates}>
-                📅 {item.startDate} to {item.endDate}
+      {/* Tabs: Mine / Browse (Handbook §1.2, §2.3) */}
+      <View
+        style={[
+          styles.tabsRow,
+          { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle },
+        ]}
+      >
+        <Button
+          variant={activeTab === "browse" ? "primary" : "ghost"}
+          size="sm"
+          onPress={() => setActiveTab("browse")}
+          style={styles.tabBtn}
+        >
+          Browse All
+        </Button>
+        <Button
+          variant={activeTab === "mine" ? "primary" : "ghost"}
+          size="sm"
+          onPress={() => setActiveTab("mine")}
+          style={styles.tabBtn}
+        >
+          My Programs
+        </Button>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : activeTab === "mine" ? (
+        <Card style={styles.contentCard}>
+          <EmptyState
+            icon="award"
+            title="No Active Enrollments"
+            message="You are not currently enrolled in any active seasons. Browse available divisions to sign up."
+            action={{
+              label: "Browse Seasons",
+              onPress: () => setActiveTab("browse"),
+            }}
+          />
+        </Card>
+      ) : programs && programs.length > 0 ? (
+        programs.map((item) => (
+          <Card
+            key={item.id}
+            style={styles.programCard}
+            contentStyle={styles.cardContent}
+          >
+            <View style={styles.cardHeaderRow}>
+              <Badge
+                label={item.status}
+                variant={item.status.includes("Open") ? "success" : "neutral"}
+                icon="calendar"
+              />
+              <Text style={[styles.priceTag, { color: colors.primary }]}>
+                €{(item.priceCents / 100).toFixed(2)}
               </Text>
-              <View style={styles.cardFooter}>
-                <Text style={styles.viewDivisions}>Select Division →</Text>
-              </View>
-            </TouchableOpacity>
-          </Link>
-        )}
-      />
-    </View>
+            </View>
+
+            <Text
+              style={[styles.programName, { color: colors.textPrimary }]}
+              numberOfLines={2}
+            >
+              {item.name}
+            </Text>
+
+            <View style={styles.metaRow}>
+              <Feather name="clock" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                {item.startDate} to {item.endDate}
+              </Text>
+            </View>
+
+            <View style={[styles.cardFooter, { borderTopColor: colors.borderSubtle }]}>
+              <Text style={[styles.typeText, { color: colors.textSecondary }]}>
+                Flex singles • 6+ verified partners guaranteed
+              </Text>
+
+              <Button
+                variant="primary"
+                size="sm"
+                href={`/programs/${item.id}`}
+                iconRight="arrow-right"
+              >
+                Select Division
+              </Button>
+            </View>
+          </Card>
+        ))
+      ) : (
+        <Card style={styles.contentCard}>
+          <EmptyState
+            icon="calendar"
+            title="No Programs Available"
+            message="There are currently no active programs open for registration. Check back soon for upcoming season announcements."
+            action={{
+              label: "Refresh",
+              onPress: () => refetch(),
+            }}
+          />
+        </Card>
+      )}
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    maxWidth: 900,
-    width: "100%",
-    alignSelf: "center",
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  header: {
     marginBottom: 16,
   },
-  card: {
-    backgroundColor: colors.surface,
-    padding: 18,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
-  cardHeader: {
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  tabsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    padding: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 6,
+  },
+  tabBtn: {
+    flex: 1,
+  },
+  loadingContainer: {
+    padding: 48,
     alignItems: "center",
-    marginBottom: 8,
+    justifyContent: "center",
   },
-  statusBadge: {
-    backgroundColor: colors.badgeBg,
-    color: colors.badgeText,
-    fontSize: 12,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+  contentCard: {
+    paddingVertical: 12,
   },
-  price: {
+  programCard: {
+    marginBottom: 14,
+  },
+  cardContent: {
+    padding: 16,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  priceTag: {
     fontSize: 16,
-    fontWeight: "700",
-    color: colors.primary,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   programName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: colors.text,
-    marginBottom: 4,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
-  dates: {
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  metaText: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 12,
+    fontWeight: "500",
   },
   cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 8,
-    alignItems: "flex-end",
+    flexWrap: "wrap",
+    gap: 10,
   },
-  viewDivisions: {
-    color: colors.primary,
-    fontWeight: "600",
-    fontSize: 14,
+  typeText: {
+    fontSize: 12,
+    fontWeight: "500",
+    flexShrink: 1,
   },
 });
