@@ -39,7 +39,7 @@ export default function RootLayout() {
             },
           }}
         >
-          <Stack.Screen name="index" options={{ title: "Frankfurt Tennis League" }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="programs/index" options={{ title: "Programs" }} />
           <Stack.Screen name="programs/[programId]" options={{ title: "Select Division" }} />
           <Stack.Screen name="divisions/[divisionId]" options={{ title: "Division" }} />
