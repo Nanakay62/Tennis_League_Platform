@@ -4,10 +4,8 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { fetchCurrentUser, UserSession } from "../src/lib/auth";
@@ -19,8 +17,19 @@ import {
   RosterPlayerResponse,
   LatestScoreFeedItem,
 } from "../src/api/client";
+import { useThemeColors } from "../src/theme/colors";
+import {
+  AppShell,
+  Card,
+  MetricCard,
+  ListRow,
+  Button,
+  Badge,
+  StandingsTable,
+} from "../src/components";
 
 export default function HomeScreen() {
+  const { colors } = useThemeColors();
   const [user, setUser] = useState<UserSession | null>(null);
   const [roster, setRoster] = useState<RosterPlayerResponse[]>([]);
   const [standings, setStandings] = useState<StandingRow[]>([]);
@@ -59,449 +68,355 @@ export default function HomeScreen() {
     roster[0] ||
     null;
 
-  // Show top 3 rows for compact standings
+  // Top 3 for compact preview
   const topStandings = standings.slice(0, 3);
 
+  // Compute player stats for Season Metrics (from standings)
+  const myStanding = user
+    ? standings.find((s) => s.playerId === user.id) || standings[0]
+    : standings[0];
+
+  const currentRank = myStanding ? `#${myStanding.rank}` : "#2";
+  const currentRecord = myStanding ? `${myStanding.wins} - ${myStanding.losses}` : "4 - 2";
+  const currentPct = myStanding ? `${(myStanding.gamesPct * 100).toFixed(0)}%` : "58%";
+  const winsCount = myStanding ? myStanding.wins : 4;
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      {/* 1. Slim Header */}
-      <View style={styles.header}>
-        <View style={styles.headerBrand}>
-          <View style={styles.brandMark} />
-          <Text style={styles.brandTitle}>FRANKFURT TENNIS</Text>
+    <AppShell>
+      {/* Greeting Header */}
+      <View style={styles.greetingSection}>
+        <View style={styles.greetingCol}>
+          <Text style={[styles.greetingHeadline, { color: colors.textPrimary }]}>
+            {user?.displayName ? `Welcome back, ${user.displayName}` : "Frankfurt Tennis League"}
+          </Text>
+          <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>
+            Competitive 3.5 • Fall Season 2026
+          </Text>
         </View>
-
-        <View style={styles.headerNav}>
-          <Link href="/programs" asChild>
-            <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.headerNavLink}>Programs</Text>
-            </TouchableOpacity>
-          </Link>
-
-          <Link href="/courts" asChild>
-            <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.headerNavLink}>Courts</Text>
-            </TouchableOpacity>
-          </Link>
-
-          <Link href="/account" asChild>
-            <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8}>
-              {user?.displayName ? (
-                <Text style={styles.avatarText}>
-                  {user.displayName.charAt(0).toUpperCase()}
-                </Text>
-              ) : (
-                <Feather name="user" size={16} color="#44403c" />
-              )}
-            </TouchableOpacity>
-          </Link>
+        <View style={styles.marketBadge}>
+          <Feather name="map-pin" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+          <Text style={[styles.marketText, { color: colors.textSecondary }]}>
+            Frankfurt, Germany
+          </Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 2. Hero Card: Your Next Match */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroHeaderRow}>
-            <Text style={styles.heroSectionLabel}>NEXT MATCH • ROUND 3</Text>
-            <View style={styles.heroStatusDot} />
+      {/* 1. Hero Card: Your Next Match (Flat surface, no stock photography - Constraint #1) */}
+      <Card
+        style={[
+          styles.heroCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.heroTopRow}>
+          <Badge label="NEXT MATCH • ROUND 3" variant="accent" icon="calendar" />
+          <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
+        </View>
+
+        <Text
+          style={[styles.heroOpponentTitle, { color: colors.textPrimary }]}
+          numberOfLines={2}
+        >
+          vs. {opponent ? opponent.display_name : "Maximilian Weber"}
+        </Text>
+
+        {/* Match details with flex wrap for realistic longer data (Constraint #2) */}
+        <View style={styles.heroMetaWrap}>
+          <View style={styles.heroMetaItem}>
+            <Feather name="clock" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
+            <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+              Thursday, Oct 8 • 18:00 CEST
+            </Text>
           </View>
-
-          <Text style={styles.heroOpponentName}>
-            vs. {opponent ? opponent.display_name : "Maximilian Weber"}
-          </Text>
-
-          <View style={styles.heroMetaRow}>
-            <View style={styles.heroMetaItem}>
-              <Feather name="calendar" size={14} color="#78716c" style={styles.heroMetaIcon} />
-              <Text style={styles.heroMetaText}>Thursday, Oct 8 • 18:00 CEST</Text>
-            </View>
-            <View style={styles.heroMetaItem}>
-              <Feather name="map-pin" size={14} color="#78716c" style={styles.heroMetaIcon} />
-              <Text style={styles.heroMetaText}>TC Palmengarten (Clay Court 4)</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroActionsRow}>
-            <Link href="/divisions/div-comp-1" asChild>
-              <TouchableOpacity style={styles.primaryActionButton} activeOpacity={0.85}>
-                <Text style={styles.primaryActionButtonText}>Confirm Availability</Text>
-              </TouchableOpacity>
-            </Link>
-
-            <Link href="/scores/submit" asChild>
-              <TouchableOpacity style={styles.secondaryActionButton} activeOpacity={0.85}>
-                <Text style={styles.secondaryActionButtonText}>Report Score</Text>
-              </TouchableOpacity>
-            </Link>
+          <View style={styles.heroMetaItem}>
+            <Feather name="map-pin" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
+            <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+              TC Palmengarten (Clay Court 4)
+            </Text>
           </View>
         </View>
 
-        {/* 3. Two Columns: Compact Standings Preview + Dense Quick Actions */}
-        <View style={styles.columnsContainer}>
-          {/* Left Column: Compact Standings */}
-          <View style={styles.standingsColumn}>
-            <View style={styles.columnHeaderRow}>
-              <Text style={styles.columnTitle}>Competitive 3.5 Division</Text>
-              <Link href="/divisions/div-comp-1" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.columnLink}>Full Table →</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
+        {/* Primary and secondary action buttons */}
+        <View style={styles.heroActionsRow}>
+          <Button
+            variant="primary"
+            size="md"
+            href="/divisions/div-comp-1"
+            icon="check-circle"
+            style={styles.heroActionBtn}
+          >
+            Confirm Availability
+          </Button>
 
-            <View style={styles.standingsCard}>
-              <View style={styles.tableHeaderRow}>
-                <Text style={[styles.tableHeaderCell, styles.rankCol]}>#</Text>
-                <Text style={[styles.tableHeaderCell, styles.playerCol]}>Player</Text>
-                <Text style={[styles.tableHeaderCell, styles.recordCol]}>W - L</Text>
-                <Text style={[styles.tableHeaderCell, styles.pctCol]}>Win %</Text>
-              </View>
+          <Button
+            variant="secondary"
+            size="md"
+            href="/scores/submit"
+            icon="edit-3"
+            style={styles.heroActionBtn}
+          >
+            Report Score
+          </Button>
+        </View>
+      </Card>
 
-              {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#204b39" />
-                </View>
-              ) : topStandings.length > 0 ? (
-                topStandings.map((row, idx) => (
-                  <View
-                    key={row.playerId || idx}
-                    style={[
-                      styles.tableRow,
-                      idx === topStandings.length - 1 && styles.tableRowLast,
-                    ]}
-                  >
-                    <Text style={[styles.tableCellRank, styles.rankCol]}>
-                      {row.rank}
-                    </Text>
-                    <Text style={[styles.tableCellName, styles.playerCol]} numberOfLines={1}>
-                      {row.playerName}
-                    </Text>
-                    <Text style={[styles.tableCellRecord, styles.recordCol]}>
-                      {row.wins} - {row.losses}
-                    </Text>
-                    <Text style={[styles.tableCellPct, styles.pctCol]}>
-                      {(row.gamesPct * 100).toFixed(0)}%
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.emptyText}>No standing data available.</Text>
-              )}
+      {/* 2. Your Season Stat Metrics */}
+      <View style={styles.metricsRow}>
+        <MetricCard label="Position" value={currentRank} />
+        <MetricCard label="Record" value={currentRecord} />
+        <MetricCard label="Games Won" value={currentPct} />
+        <MetricCard
+          label="Wins Needed"
+          value={`${winsCount} / 5`}
+          progress={{
+            current: winsCount,
+            total: 5,
+            label: `${Math.max(5 - winsCount, 0)} wins to qualify`,
+          }}
+        />
+      </View>
 
-              <Link href="/divisions/div-comp-1" asChild>
-                <TouchableOpacity style={styles.cardFooterLink} activeOpacity={0.8}>
-                  <Text style={styles.cardFooterLinkText}>View full division standings</Text>
-                  <Feather name="arrow-right" size={13} color="#204b39" />
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
-
-          {/* Right Column: Dense Quick Actions List Rows */}
-          <View style={styles.actionsColumn}>
-            <View style={styles.columnHeaderRow}>
-              <Text style={styles.columnTitle}>Quick Actions</Text>
-            </View>
-
-            <View style={styles.actionList}>
-              <Link href="/scores/submit" asChild>
-                <TouchableOpacity style={styles.actionListRow} activeOpacity={0.7}>
-                  <View style={styles.actionRowIconContainer}>
-                    <Feather name="edit-3" size={16} color="#204b39" />
-                  </View>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>Report Match Score</Text>
-                    <Text style={styles.actionRowSubtitle}>Submit sets for confirmation</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color="#a8a29e" />
-                </TouchableOpacity>
-              </Link>
-
-              <Link href="/partners" asChild>
-                <TouchableOpacity style={styles.actionListRow} activeOpacity={0.7}>
-                  <View style={styles.actionRowIconContainer}>
-                    <Feather name="users" size={16} color="#204b39" />
-                  </View>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>Practice Partners</Text>
-                    <Text style={styles.actionRowSubtitle}>Find local players by NTRP</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color="#a8a29e" />
-                </TouchableOpacity>
-              </Link>
-
-              <Link href="/courts" asChild>
-                <TouchableOpacity style={styles.actionListRow} activeOpacity={0.7}>
-                  <View style={styles.actionRowIconContainer}>
-                    <Feather name="map-pin" size={16} color="#204b39" />
-                  </View>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>Frankfurt Courts</Text>
-                    <Text style={styles.actionRowSubtitle}>Directory, surfaces & booking</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color="#a8a29e" />
-                </TouchableOpacity>
-              </Link>
-
-              <Link href="/community/poty" asChild>
-                <TouchableOpacity style={styles.actionListRow} activeOpacity={0.7}>
-                  <View style={styles.actionRowIconContainer}>
-                    <Feather name="award" size={16} color="#204b39" />
-                  </View>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>Player of the Year</Text>
-                    <Text style={styles.actionRowSubtitle}>Leaderboard & awards</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color="#a8a29e" />
-                </TouchableOpacity>
-              </Link>
-
-              <Link href="/programs" asChild>
-                <TouchableOpacity
-                  style={StyleSheet.flatten([styles.actionListRow, styles.actionListRowLast])}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.actionRowIconContainer}>
-                    <Feather name="calendar" size={16} color="#204b39" />
-                  </View>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>Browse Programs</Text>
-                    <Text style={styles.actionRowSubtitle}>Fall Season 2026 divisions</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color="#a8a29e" />
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
+      {/* 3. Two Columns: Compact Standings Preview + Dense Quick Actions */}
+      <View style={styles.columnsContainer}>
+        {/* Left Column: Compact Standings */}
+        <View style={styles.columnLeft}>
+          <Card
+            title="Competitive 3.5 Division"
+            actionLink={{ label: "Full Table →", href: "/divisions/div-comp-1" }}
+            noPadding
+          >
+            <StandingsTable
+              standings={topStandings}
+              currentUserPlayerId={user?.id}
+              mode="auto"
+              loading={loading}
+              divisionId="div-comp-1"
+              showLegend={false}
+            />
+          </Card>
         </View>
 
-        {/* 4. Slim, Lower-Emphasis Banner Row for Join / Enrollment (Shown for guest/not-yet-enrolled users) */}
-        {!user && (
-          <View style={styles.enrollmentBanner}>
-            <View style={styles.enrollmentBannerTextCol}>
-              <View style={styles.bannerTagRow}>
-                <Feather name="calendar" size={13} color="#204b39" style={{ marginRight: 6 }} />
-                <Text style={styles.enrollmentBannerHeadline}>
-                  Fall Season 2026 Open for Registration
-                </Text>
-              </View>
-              <Text style={styles.enrollmentBannerSub}>
-                Join competitive flex singles across Frankfurt courts • €34.95
+        {/* Right Column: Dense Quick Actions */}
+        <View style={styles.columnRight}>
+          <Card title="Quick Actions" noPadding>
+            <ListRow
+              icon="edit-3"
+              title="Report Match Score"
+              subtitle="Submit sets for opponent confirmation"
+              href="/scores/submit"
+            />
+            <ListRow
+              icon="users"
+              title="Practice Partners"
+              subtitle="Find local players by NTRP rating"
+              href="/partners"
+            />
+            <ListRow
+              icon="map-pin"
+              title="Frankfurt Courts"
+              subtitle="Directory, surfaces & booking"
+              href="/courts"
+            />
+            <ListRow
+              icon="award"
+              title="Player of the Year"
+              subtitle="Leaderboard & community awards"
+              href="/community/poty"
+            />
+            <ListRow
+              icon="calendar"
+              title="Browse Programs"
+              subtitle="Fall Season 2026 flex divisions"
+              href="/programs"
+              isLast
+            />
+          </Card>
+        </View>
+      </View>
+
+      {/* 4. Slim, Lower-Emphasis Banner Row for Join Today (Shown only to guest/un-enrolled users) */}
+      {!user && (
+        <View
+          style={[
+            styles.enrollmentBanner,
+            {
+              backgroundColor: colors.surfaceSubtle,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.enrollmentTextCol}>
+            <View style={styles.bannerTagRow}>
+              <Feather name="calendar" size={13} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={[styles.enrollmentHeadline, { color: colors.primary }]}>
+                Fall Season 2026 Open for Registration
               </Text>
             </View>
+            <Text style={[styles.enrollmentSub, { color: colors.textSecondary }]}>
+              Join competitive flex singles across Frankfurt courts • €34.95
+            </Text>
+          </View>
 
-            <Link href="/join" asChild>
-              <TouchableOpacity style={styles.enrollmentBannerBtn} activeOpacity={0.8}>
-                <Text style={styles.enrollmentBannerBtnText}>Join Today</Text>
-                <Feather name="arrow-right" size={13} color="#ffffff" style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-            </Link>
+          <Button
+            variant="primary"
+            size="sm"
+            href="/join"
+            iconRight="arrow-right"
+          >
+            Join Today
+          </Button>
+        </View>
+      )}
+
+      {/* 5. Recent League Results (Fixed layout preventing collision with longer names - Constraint #2) */}
+      <Card
+        title="Recent League Results"
+        actionLink={{ label: "View all results →", href: "/scores" }}
+        noPadding
+      >
+        {loading ? (
+          <View style={styles.loadingFeed}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : recentScores.length > 0 ? (
+          recentScores.map((match, idx) => {
+            const isLast = idx === recentScores.length - 1;
+
+            return (
+              <View
+                key={match.id || idx}
+                style={[
+                  styles.resultRow,
+                  !isLast && { borderBottomColor: colors.borderSubtle, borderBottomWidth: 1 },
+                ]}
+              >
+                <View style={styles.resultMatchupCol}>
+                  <Text
+                    style={[styles.resultMatchupText, { color: colors.textPrimary }]}
+                    numberOfLines={2}
+                  >
+                    <Text style={styles.resultWinner}>{match.winner_name}</Text>
+                    <Text style={[styles.resultVs, { color: colors.textMuted }]}> def. </Text>
+                    <Text style={styles.resultLoser}>{match.loser_name}</Text>
+                  </Text>
+                  <Text style={[styles.resultDivisionText, { color: colors.textSecondary }]}>
+                    {match.division_name}
+                  </Text>
+                </View>
+
+                <View style={styles.resultScoreCol}>
+                  <Text
+                    style={[styles.resultScoreLine, { color: colors.textPrimary }]}
+                    numberOfLines={1}
+                  >
+                    {match.score_line}
+                  </Text>
+                  <Badge label="Confirmed" variant="success" size="sm" />
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <View style={styles.loadingFeed}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No recent scores recorded.
+            </Text>
           </View>
         )}
-
-        {/* 5. Recent Results List */}
-        <View style={styles.resultsSection}>
-          <View style={styles.columnHeaderRow}>
-            <Text style={styles.columnTitle}>Recent League Results</Text>
-            <Link href="/scores" asChild>
-              <TouchableOpacity>
-                <Text style={styles.columnLink}>View all results →</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
-
-          <View style={styles.resultsCard}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#204b39" />
-              </View>
-            ) : recentScores.length > 0 ? (
-              recentScores.map((match, idx) => (
-                <View
-                  key={match.id || idx}
-                  style={[
-                    styles.resultRow,
-                    idx === recentScores.length - 1 && styles.resultRowLast,
-                  ]}
-                >
-                  <View style={styles.resultMainCol}>
-                    <Text style={styles.resultMatchup}>
-                      <Text style={styles.resultWinner}>{match.winner_name}</Text>
-                      <Text style={styles.resultVs}> def. </Text>
-                      <Text style={styles.resultLoser}>{match.loser_name}</Text>
-                    </Text>
-                    <Text style={styles.resultDivision}>{match.division_name}</Text>
-                  </View>
-
-                  <View style={styles.resultScoreCol}>
-                    <Text style={styles.resultScore}>{match.score_line}</Text>
-                    <Text style={styles.resultStatus}>Confirmed</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.emptyText}>No recent scores recorded.</Text>
-            )}
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </Card>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f8f7f4",
-  },
-  header: {
-    height: 56,
+  greetingSection: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    backgroundColor: "#f8f7f4",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e6e3dc",
-  },
-  headerBrand: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: 8,
+    marginBottom: 16,
   },
-  brandMark: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#204b39",
+  greetingCol: {
+    flex: 1,
+    minWidth: 240,
   },
-  brandTitle: {
-    fontSize: 13,
+  greetingHeadline: {
+    fontSize: 20,
     fontWeight: "800",
-    letterSpacing: 1.2,
-    color: "#1c1917",
+    letterSpacing: -0.3,
   },
-  headerNav: {
+  greetingSub: {
+    fontSize: 13,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  marketBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  headerNavLink: {
-    fontSize: 13,
+  marketText: {
+    fontSize: 12,
     fontWeight: "600",
-    color: "#57534e",
-  },
-  avatarButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#e7e5e0",
-    borderWidth: 1,
-    borderColor: "#d6d3cd",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#204b39",
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    maxWidth: 900,
-    width: "100%",
-    alignSelf: "center",
   },
 
-  // Hero Card
+  // Hero Next Match Card
   heroCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#e6e3dc",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    marginBottom: 16,
   },
-  heroHeaderRow: {
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  heroSectionLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    color: "#78716c",
-  },
-  heroStatusDot: {
+  heroLiveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#204b39",
   },
-  heroOpponentName: {
+  heroOpponentTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1c1917",
+    letterSpacing: -0.4,
     marginBottom: 12,
   },
-  heroMetaRow: {
+  heroMetaWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 16,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   heroMetaItem: {
     flexDirection: "row",
     alignItems: "center",
   },
-  heroMetaIcon: {
-    marginRight: 6,
-  },
   heroMetaText: {
     fontSize: 13,
-    color: "#57534e",
     fontWeight: "500",
   },
   heroActionsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
-  primaryActionButton: {
-    backgroundColor: "#204b39",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
+  heroActionBtn: {
+    flex: 1,
+    minWidth: 160,
   },
-  primaryActionButtonText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  secondaryActionButton: {
-    backgroundColor: "#f4f3ef",
-    borderWidth: 1,
-    borderColor: "#e1ded7",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryActionButtonText: {
-    color: "#292524",
-    fontSize: 13,
-    fontWeight: "600",
+
+  // Season Metrics
+  metricsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
   },
 
   // Two Column Layout
@@ -509,159 +424,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 16,
-    marginBottom: 20,
+    marginBottom: 4,
   },
-  standingsColumn: {
+  columnLeft: {
     flex: 1,
     minWidth: 320,
   },
-  actionsColumn: {
+  columnRight: {
     flex: 1,
     minWidth: 320,
-  },
-  columnHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-    paddingHorizontal: 2,
-  },
-  columnTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1c1917",
-    letterSpacing: -0.2,
-  },
-  columnLink: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#204b39",
-  },
-
-  // Standings Card
-  standingsCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e6e3dc",
-    overflow: "hidden",
-  },
-  tableHeaderRow: {
-    flexDirection: "row",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#f7f6f2",
-    borderBottomWidth: 1,
-    borderBottomColor: "#edeae3",
-  },
-  tableHeaderCell: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#78716c",
-  },
-  rankCol: {
-    width: 24,
-    textAlign: "center",
-  },
-  playerCol: {
-    flex: 1,
-    paddingHorizontal: 8,
-  },
-  recordCol: {
-    width: 48,
-    textAlign: "center",
-  },
-  pctCol: {
-    width: 48,
-    textAlign: "right",
-  },
-  tableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f2ee",
-  },
-  tableRowLast: {
-    borderBottomWidth: 0,
-  },
-  tableCellRank: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#78716c",
-  },
-  tableCellName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#1c1917",
-  },
-  tableCellRecord: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#44403c",
-  },
-  tableCellPct: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#204b39",
-  },
-  cardFooterLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: "#faf9f6",
-    borderTopWidth: 1,
-    borderTopColor: "#edeae3",
-  },
-  cardFooterLinkText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#204b39",
-  },
-
-  // Dense Action List
-  actionList: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e6e3dc",
-    overflow: "hidden",
-  },
-  actionListRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f2ee",
-  },
-  actionListRowLast: {
-    borderBottomWidth: 0,
-  },
-  actionRowIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: "#edf3ef",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  actionRowContent: {
-    flex: 1,
-  },
-  actionRowTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#1c1917",
-    marginBottom: 2,
-  },
-  actionRowSubtitle: {
-    fontSize: 12,
-    color: "#78716c",
   },
 
   // Slim Enrollment Banner (Low Emphasis)
@@ -669,17 +440,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f4f3ee",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#e4e1d9",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     flexWrap: "wrap",
     gap: 12,
   },
-  enrollmentBannerTextCol: {
+  enrollmentTextCol: {
     flex: 1,
     minWidth: 260,
   },
@@ -688,99 +457,59 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 2,
   },
-  enrollmentBannerHeadline: {
+  enrollmentHeadline: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#204b39",
   },
-  enrollmentBannerSub: {
+  enrollmentSub: {
     fontSize: 12,
-    color: "#57534e",
-  },
-  enrollmentBannerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#204b39",
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  enrollmentBannerBtnText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#ffffff",
   },
 
-  // Recent Results
-  resultsSection: {
-    marginBottom: 20,
-  },
-  resultsCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e6e3dc",
-    overflow: "hidden",
-  },
+  // Recent Results List
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f2ee",
+    gap: 12,
   },
-  resultRowLast: {
-    borderBottomWidth: 0,
-  },
-  resultMainCol: {
+  resultMatchupCol: {
     flex: 1,
-    paddingRight: 12,
+    minWidth: 180,
   },
-  resultMatchup: {
+  resultMatchupText: {
     fontSize: 13,
+    lineHeight: 18,
     marginBottom: 2,
   },
   resultWinner: {
     fontWeight: "700",
-    color: "#1c1917",
   },
   resultVs: {
-    color: "#a8a29e",
     fontWeight: "400",
   },
   resultLoser: {
-    color: "#57534e",
-    fontWeight: "500",
+    fontWeight: "600",
   },
-  resultDivision: {
+  resultDivisionText: {
     fontSize: 11,
-    color: "#78716c",
   },
   resultScoreCol: {
     alignItems: "flex-end",
+    gap: 4,
   },
-  resultScore: {
+  resultScoreLine: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#204b39",
-    marginBottom: 2,
+    letterSpacing: -0.1,
   },
-  resultStatus: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#78716c",
-    textTransform: "uppercase",
-  },
-  loadingContainer: {
+  loadingFeed: {
     padding: 24,
     alignItems: "center",
+    justifyContent: "center",
   },
   emptyText: {
-    padding: 16,
-    fontSize: 12,
-    color: "#78716c",
-    textAlign: "center",
+    fontSize: 13,
   },
 });
