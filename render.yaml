@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: tennis-league-api
+    runtime: docker
+    rootDir: apps/api
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DEFAULT_MARKET_NAME
+        value: Frankfurt
+      - key: DEFAULT_MARKET_TIMEZONE
+        value: Europe/Berlin
+      - key: DEFAULT_MARKET_CURRENCY
+        value: EUR
+      - key: STRIPE_SECRET_KEY
+        value: sk_test_placeholder
+      - key: STRIPE_WEBHOOK_SECRET
+        value: whsec_placeholder
+      - key: STRIPE_PUBLISHABLE_KEY
+        value: pk_test_placeholder
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: LOG_LEVEL
+        value: info
