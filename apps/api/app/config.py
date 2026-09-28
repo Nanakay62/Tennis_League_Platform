@@ -1,8 +1,10 @@
 """Application configuration and configurable league policies."""
 
+import contextlib
+import json
 from functools import lru_cache
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,12 +40,36 @@ class Settings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: str = "pk_test_placeholder"
 
     # CORS & Client
-    CORS_ORIGINS: list[str] = [
+    CORS_ORIGINS: list[str] | str = [
         "http://localhost:8081",
         "http://localhost:19006",
         "http://localhost:3000",
         "http://127.0.0.1:8081",
     ]
+
+    @field_validator("CORS_ORIGINS", mode="after")
+    @classmethod
+    def assemble_cors_origins(cls, v: list[str] | str) -> list[str]:
+        default_origins = [
+            "http://localhost:8081",
+            "http://localhost:19006",
+            "http://localhost:3000",
+            "http://127.0.0.1:8081",
+        ]
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return default_origins
+            if v.startswith("[") and v.endswith("]"):
+                with contextlib.suppress(json.JSONDecodeError, TypeError, ValueError):
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+            origins = [x.strip() for x in v.split(",") if x.strip()]
+            return origins if origins else default_origins
+        elif isinstance(v, list):
+            return [str(item).strip() for item in v if str(item).strip()] or default_origins
+        return default_origins
 
     # Push Notifications & Email
     EXPO_PUSH_URL: str = "https://exp.host/--/api/v2/push/send"

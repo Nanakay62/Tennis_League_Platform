@@ -42,3 +42,19 @@ def test_settings_production_valid():
     assert settings.ENVIRONMENT == "production"
     assert settings.DEBUG is False
     assert len(settings.SECRET_KEY) == 32
+
+
+def test_cors_origins_empty_string_fallback():
+    settings = Settings(CORS_ORIGINS="")
+    assert len(settings.CORS_ORIGINS) > 0
+    assert "http://localhost:3000" in settings.CORS_ORIGINS
+
+
+def test_cors_origins_comma_separated():
+    settings = Settings(CORS_ORIGINS="https://frontend.vercel.app, https://custom.domain.com")
+    assert settings.CORS_ORIGINS == ["https://frontend.vercel.app", "https://custom.domain.com"]
+
+
+def test_cors_origins_json_array():
+    settings = Settings(CORS_ORIGINS='["https://frontend.vercel.app", "https://custom.domain.com"]')
+    assert settings.CORS_ORIGINS == ["https://frontend.vercel.app", "https://custom.domain.com"]
