@@ -1,4 +1,5 @@
-version: "3.9"
+# Tennis League Platform — Production Docker Compose
+# Docker Compose v2 format (no deprecated 'version' field)
 
 services:
   db:

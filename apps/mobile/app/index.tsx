@@ -8,6 +8,7 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { fetchCurrentUser, UserSession } from "../src/lib/auth";
@@ -20,6 +21,7 @@ import {
   LatestScoreFeedItem,
 } from "../src/api/client";
 import { useThemeColors } from "../src/theme/colors";
+import { fonts } from "../src/theme/tokens";
 import {
   AppShell,
   Card,
@@ -30,6 +32,7 @@ import {
   StandingsTable,
 } from "../src/components";
 import { MOCK_IMAGES, getPlayerAvatar } from "../src/constants/mockImages";
+
 
 export default function HomeScreen() {
   const { colors, isDark } = useThemeColors();
@@ -133,8 +136,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 2. Hero Card: Next Match (With Mock Tennis Ball Image matching reference redesign) */}
-      <Card
+      {/* 2. Hero Card: Next Match (With Tennis Ball Image Backdrop and Fading White Gradient Overlay) */}
+      <View
         style={[
           styles.heroCard,
           {
@@ -143,142 +146,169 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <View style={styles.heroLayout}>
-          {/* Left Details Column */}
-          <View style={styles.heroDetailsCol}>
-            <View style={styles.heroTopRow}>
-              <View style={styles.heroBadgeRow}>
-                <Feather
-                  name="calendar"
-                  size={14}
-                  color={colors.primary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.heroNextMatchText, { color: colors.textPrimary }]}>
-                  Next Match
-                </Text>
-                <Badge label="Round 3" variant="neutral" size="sm" style={{ marginLeft: 8 }} />
-              </View>
-              <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
-            </View>
+        {/* Backdrop Layer: Tennis Ball on Clay Court with Fading White Overlay */}
+        <View style={[styles.heroBackdrop, { pointerEvents: "none" }]}>
+          <Image
+            source={MOCK_IMAGES.heroTennisBall}
+            style={[
+              styles.heroBackdropImage,
+              {
+                left: isDesktop ? "32%" : "15%",
+                width: isDesktop ? "68%" : "85%",
+              },
+            ]}
+            resizeMode="cover"
+          />
 
-            {/* Players Faceoff */}
-            <View style={styles.playersFaceoff}>
-              {/* Player 1 (User) */}
-              <View style={styles.playerBlock}>
-                <View style={styles.avatarWrapper}>
-                  <Image source={MOCK_IMAGES.avatars.max} style={styles.heroAvatar} />
-                  <View style={styles.youBadge}>
-                    <Text style={styles.youBadgeText}>YOU</Text>
-                  </View>
+          {/* Fading White Horizontal Linear Gradient Overlay */}
+          <LinearGradient
+            colors={[
+              colors.surface,                          // 100% solid white on the left for crisp text contrast
+              colors.surface,                          // solid white spans player 1 and VS
+              "rgba(255, 255, 255, 0.96)",             // subtle transition start
+              "rgba(255, 255, 255, 0.65)",             // smooth blend
+              "rgba(255, 255, 255, 0.15)",             // tennis ball shines through vibrant
+              "rgba(255, 255, 255, 0.00)",             // transparent on the far right
+            ]}
+            locations={
+              isDesktop
+                ? [0, 0.44, 0.58, 0.72, 0.88, 1.0]
+                : [0, 0.35, 0.52, 0.70, 0.88, 1.0]
+            }
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+
+        {/* Foreground Content */}
+        <View style={[styles.heroDetailsCol, { maxWidth: isDesktop ? 620 : "100%" }]}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroBadgeRow}>
+              <Feather
+                name="calendar"
+                size={14}
+                color={colors.primary}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.heroNextMatchText, { color: colors.textPrimary }]}>
+                Next Match
+              </Text>
+              <Badge label="Round 3" variant="neutral" size="sm" style={{ marginLeft: 8 }} />
+            </View>
+            <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
+          </View>
+
+          {/* Players Faceoff */}
+          <View style={styles.playersFaceoff}>
+            {/* Player 1 (User) */}
+            <View style={styles.playerBlock}>
+              <View style={styles.avatarWrapper}>
+                <Image source={MOCK_IMAGES.avatars.max} style={styles.heroAvatar} />
+                <View style={styles.youBadge}>
+                  <Text style={styles.youBadgeText}>YOU</Text>
                 </View>
-                <Text
-                  style={[styles.heroPlayerName, { color: colors.textPrimary }]}
-                  numberOfLines={1}
-                >
-                  {userName}
-                </Text>
-                <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
-                  Competitive 3.5
-                </Text>
               </View>
-
-              {/* VS Marker */}
-              <View style={styles.vsContainer}>
-                <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
-              </View>
-
-              {/* Player 2 (Opponent) */}
-              <View style={styles.playerBlock}>
-                <Image
-                  source={getPlayerAvatar(opponentName)}
-                  style={styles.heroAvatar}
-                />
-                <Text
-                  style={[styles.heroPlayerName, { color: colors.textPrimary }]}
-                  numberOfLines={1}
-                >
-                  {opponentName}
-                </Text>
-                <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
-                  Competitive 3.5
-                </Text>
-              </View>
+              <Text
+                style={[styles.heroPlayerName, { color: colors.textPrimary }]}
+                numberOfLines={1}
+              >
+                {userName}
+              </Text>
+              <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
+                Competitive 3.5
+              </Text>
             </View>
 
-            {/* Match Metadata Row */}
-            <View style={styles.heroMetaWrap}>
-              <View style={styles.heroMetaItem}>
-                <Feather
-                  name="clock"
-                  size={13}
-                  color={colors.textSecondary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                  Thu, Oct 8 • 18:00
-                </Text>
-              </View>
-              <View style={styles.heroMetaItem}>
-                <Feather
-                  name="map-pin"
-                  size={13}
-                  color={colors.textSecondary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                  TC Palmengarten
-                </Text>
-              </View>
-              <View style={styles.heroMetaItem}>
-                <Feather
-                  name="grid"
-                  size={13}
-                  color={colors.textSecondary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                  Clay Court 4
-                </Text>
-              </View>
+            {/* VS Marker */}
+            <View style={styles.vsContainer}>
+              <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
             </View>
 
-            {/* Action Buttons */}
-            <View style={styles.heroActionsRow}>
-              <Button
-                variant="primary"
-                size="md"
-                href="/divisions/div-comp-1"
-                icon="check-circle"
-                style={styles.heroActionBtn}
+            {/* Player 2 (Opponent) */}
+            <View style={styles.playerBlock}>
+              <Image
+                source={getPlayerAvatar(opponentName)}
+                style={styles.heroAvatar}
+              />
+              <Text
+                style={[styles.heroPlayerName, { color: colors.textPrimary }]}
+                numberOfLines={1}
               >
-                Confirm Match Details
-              </Button>
-
-              <Button
-                variant="secondary"
-                size="md"
-                href="/scores/submit"
-                icon="edit-3"
-                style={styles.heroActionBtn}
-              >
-                Report Score
-              </Button>
+                {opponentName}
+              </Text>
+              <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
+                Competitive 3.5
+              </Text>
             </View>
           </View>
 
-          {/* Right Image Column: High Quality Mock Tennis Ball on Clay */}
-          {isDesktop && (
-            <View style={styles.heroImageCol}>
-              <Image
-                source={MOCK_IMAGES.heroTennisBall}
-                style={styles.heroImage}
-                resizeMode="cover"
+          {/* Match Metadata Row */}
+          <View style={styles.heroMetaWrap}>
+            <View style={styles.heroMetaItem}>
+              <Feather
+                name="clock"
+                size={13}
+                color={colors.textSecondary}
+                style={{ marginRight: 6 }}
               />
+              <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                Thu, Oct 8 • 18:00
+              </Text>
             </View>
-          )}
+            <View style={styles.heroMetaItem}>
+              <Feather
+                name="map-pin"
+                size={13}
+                color={colors.textSecondary}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                TC Palmengarten
+              </Text>
+            </View>
+            <View style={styles.heroMetaItem}>
+              <Feather
+                name="grid"
+                size={13}
+                color={colors.textSecondary}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                Clay Court 4
+              </Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View
+            style={[
+              styles.heroActionsRow,
+              { flexDirection: isDesktop ? "row" : "column" },
+            ]}
+          >
+            <Button
+              variant="primary"
+              size="md"
+              href="/divisions/div-comp-1"
+              icon="check-circle"
+              style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
+            >
+              Confirm Match Details
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="md"
+              href="/scores/submit"
+              icon="edit-3"
+              style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
+            >
+              Report Score
+            </Button>
+          </View>
         </View>
-      </Card>
+      </View>
 
       {/* 3. Your Season Stat Metrics & Progress */}
       <Card style={styles.seasonCard}>
@@ -584,24 +614,26 @@ const styles = StyleSheet.create({
   // Hero Next Match Card
   heroCard: {
     marginBottom: 16,
-    padding: 0,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+    position: "relative",
+  },
+  heroBackdrop: {
+    ...StyleSheet.absoluteFill,
     overflow: "hidden",
   },
-  heroLayout: {
-    flexDirection: "row",
-    alignItems: "stretch",
+  heroBackdropImage: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    height: "100%",
   },
   heroDetailsCol: {
-    flex: 1,
+    position: "relative",
+    zIndex: 2,
     padding: 20,
-  },
-  heroImageCol: {
-    width: 240,
-  },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-    minHeight: 220,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -691,13 +723,14 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   heroActionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
   },
-  heroActionBtn: {
+  heroActionBtnDesktop: {
     flex: 1,
-    minWidth: 150,
+    minWidth: 160,
+  },
+  heroActionBtnMobile: {
+    width: "100%",
   },
 
   // Season Card

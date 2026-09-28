@@ -88,10 +88,16 @@ export function Sidebar() {
         })}
       </View>
 
-      {/* Footer Tagline (Constraint #10 - Original Copy) */}
+      {/* Footer Tagline matching reference image */}
       <View style={styles.footer}>
+        <Feather
+          name="disc"
+          size={18}
+          color={colors.sidebarTextMuted}
+          style={{ marginBottom: 8 }}
+        />
         <Text style={[styles.footerText, { color: colors.sidebarTextMuted }]}>
-          Frankfurt Flex League{"\n"}Fair play & local community
+          Better Players.{"\n"}Stronger Community.{"\n"}Frankfurt Tennis.
         </Text>
       </View>
     </View>

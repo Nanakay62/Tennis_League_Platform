@@ -6,6 +6,8 @@ import { useThemeColors } from "../../theme/colors";
 import { fetchCurrentUser, UserSession } from "../../lib/auth";
 import { getPlayerAvatar } from "../../constants/mockImages";
 
+import { useResponsive } from "../../theme/tokens";
+
 export interface TopBarProps {
   showBack?: boolean;
   onBack?: () => void;
@@ -14,16 +16,21 @@ export interface TopBarProps {
 
 /**
  * Top bar carrying strictly notifications and the account menu (Constraint #4).
- * Never repeats navigation links that are in the desktop sidebar or mobile bottom tab bar.
+ * Matches reference image:
+ * - Desktop: User profile with name & dropdown chevron, red notification bell dot
+ * - Mobile: Frankfurt Tennis brandmark on left, bell & avatar on right
  */
 export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
   const { colors } = useThemeColors();
+  const { isDesktop } = useResponsive();
   const router = useRouter();
   const [user, setUser] = useState<UserSession | null>(null);
 
   useEffect(() => {
     fetchCurrentUser().then(setUser).catch(() => {});
   }, []);
+
+  const displayName = user?.displayName || "Max Weber";
 
   return (
     <View
@@ -35,7 +42,7 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
         },
       ]}
     >
-      {/* Left: Brand mark or Back button */}
+      {/* Left: Brand mark on mobile, or Back button if enabled */}
       <View style={styles.leftSection}>
         {showBack ? (
           <TouchableOpacity
@@ -48,19 +55,23 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
             <Feather name="chevron-left" size={20} color={colors.textPrimary} />
             <Text style={[styles.backText, { color: colors.textPrimary }]}>Back</Text>
           </TouchableOpacity>
-        ) : (
+        ) : !isDesktop ? (
           <Link href="/" asChild>
             <TouchableOpacity style={styles.brandLink}>
-              <View style={[styles.brandMark, { backgroundColor: colors.primary }]} />
+              <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
+                <Feather name="circle" size={14} color="#34d399" />
+              </View>
               <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>
-                {title || "FRANKFURT TENNIS"}
+                {title || "Frankfurt Tennis"}
               </Text>
             </TouchableOpacity>
           </Link>
+        ) : (
+          <View />
         )}
       </View>
 
-      {/* Right: Notifications & Account Menu only (Constraint #4) */}
+      {/* Right: Notifications (Red badge) & Account Menu (Name + Dropdown on desktop) */}
       <View style={styles.rightSection}>
         <Link href="/settings/notifications" asChild>
           <TouchableOpacity
@@ -69,25 +80,43 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
             accessibilityLabel="Notifications"
           >
             <Feather name="bell" size={18} color={colors.textSecondary} />
-            <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+            <View style={[styles.unreadDot, { backgroundColor: "#ef4444" }]} />
           </TouchableOpacity>
         </Link>
 
         <Link href="/account" asChild>
           <TouchableOpacity
-            style={StyleSheet.flatten([
-              styles.avatarButton,
-              {
-                borderColor: colors.borderSubtle,
-              },
-            ])}
+            style={styles.profileWrapper}
             accessibilityRole="button"
             accessibilityLabel="My Account"
           >
-            <Image
-              source={getPlayerAvatar(user?.displayName || "Maximilian Weber")}
-              style={styles.avatarImage}
-            />
+            <View
+              style={StyleSheet.flatten([
+                styles.avatarButton,
+                {
+                  borderColor: colors.borderSubtle,
+                },
+              ])}
+            >
+              <Image
+                source={getPlayerAvatar(displayName)}
+                style={styles.avatarImage}
+              />
+            </View>
+
+            {isDesktop && (
+              <View style={styles.userDropdownRow}>
+                <Text style={[styles.userNameText, { color: colors.textPrimary }]}>
+                  {displayName}
+                </Text>
+                <Feather
+                  name="chevron-down"
+                  size={14}
+                  color={colors.textSecondary}
+                  style={{ marginLeft: 4 }}
+                />
+              </View>
+            )}
           </TouchableOpacity>
         </Link>
       </View>
@@ -172,4 +201,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
+  profileWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  userDropdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  userNameText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
 });
+

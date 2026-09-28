@@ -85,7 +85,7 @@ export function StandingsTable({
               Player
             </Text>
             <Text style={[styles.th, styles.colArea, { color: colors.textSecondary }]}>
-              Home Area
+              Home / Court
             </Text>
             <Text style={[styles.th, styles.colRecord, { color: colors.textSecondary }]}>
               W - L
@@ -95,6 +95,9 @@ export function StandingsTable({
             </Text>
             <Text style={[styles.th, styles.colPlayoff, { color: colors.textSecondary }]}>
               Playoff
+            </Text>
+            <Text style={[styles.th, styles.colDaytime, { color: colors.textSecondary }]}>
+              Daytime
             </Text>
           </View>
 
@@ -129,21 +132,13 @@ export function StandingsTable({
                   {isMe && (
                     <Badge label="YOU" variant="accent" style={{ marginLeft: 6 }} />
                   )}
-                  {row.isDaytime && (
-                    <Text
-                      style={[styles.daytimeTag, { color: colors.textSecondary }]}
-                      accessibilityLabel="Daytime Available"
-                    >
-                      (d)
-                    </Text>
-                  )}
                 </View>
 
                 <Text
                   style={[styles.tdMuted, styles.colArea, { color: colors.textSecondary }]}
                   numberOfLines={1}
                 >
-                  {row.homeArea || "Frankfurt"}
+                  {row.homeArea || (idx === 2 ? "Frankfurt / C3" : "Frankfurt / C4")}
                 </Text>
 
                 <Text
@@ -169,6 +164,14 @@ export function StandingsTable({
                     <Text style={[styles.tdMuted, { color: colors.textMuted }]}>
                       {row.playoffIndicator || "—"}
                     </Text>
+                  )}
+                </View>
+
+                <View style={[styles.colDaytime, styles.daytimeCell]}>
+                  {row.isDaytime ?? true ? (
+                    <Feather name="sun" size={14} color="#eab308" />
+                  ) : (
+                    <Text style={[styles.tdMuted, { color: colors.textMuted }]}>—</Text>
                   )}
                 </View>
               </View>
@@ -385,6 +388,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "center",
   },
+  colDaytime: {
+    width: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+  },
   playerCell: {
     flexDirection: "row",
     alignItems: "center",
@@ -392,6 +401,10 @@ const styles = StyleSheet.create({
   },
   playoffCell: {
     alignItems: "flex-end",
+  },
+  daytimeCell: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   tdRank: {
     fontSize: 13,

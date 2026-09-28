@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False  # Must remain False in production — enables stack trace leakage if True
 
     # Market Defaults
     DEFAULT_MARKET_NAME: str = "Frankfurt"

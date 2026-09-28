@@ -3,8 +3,50 @@ import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Platform } from "react-native";
+import { useFonts } from "expo-font";
+import Feather from "@expo/vector-icons/Feather";
 import { colors, useThemeColors } from "../src/theme/colors";
 import { OfflineBanner } from "../src/components/OfflineBanner";
+
+// Inject native system fonts for web environment (San Francisco, Roboto, system-ui)
+// Applied to root document elements without overriding custom icon fonts (e.g. Feather).
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  const styleId = "tennis-league-system-fonts";
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement("style");
+    styleEl.id = styleId;
+    styleEl.textContent = `
+      @font-face {
+        font-family: 'feather';
+        src: url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Feather';
+        src: url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+      html, body, input, select, textarea {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      /* Protect icon font glyphs from being overridden by system-ui */
+      [style*="font-family: feather"],
+      [style*="font-family: Feather"],
+      [class*="r-fontFamily-feather"],
+      [class*="r-fontFamily-Feather"] {
+        font-family: 'feather', 'Feather' !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,11 +61,15 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const { colors: themeColors, isDark } = useThemeColors();
+  const [fontsLoaded] = useFonts(Feather.font);
+
+  // Wait for icon font before rendering to avoid brief missing-glyph flash
+  if (!fontsLoaded) return null;
 
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style={isDark ? "light" : "light"} />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <OfflineBanner />
         <Stack
           screenOptions={{

@@ -101,18 +101,40 @@ export const darkColors = {
 };
 
 export type ThemeColors = typeof lightColors;
+export type ThemeMode = "light" | "dark" | "system";
+
+// The reference design is Light Mode. Default to light mode so the app
+// matches the reference image out-of-the-box regardless of host OS dark-mode setting.
+let activeThemeMode: ThemeMode = "light";
+
+export function setThemeMode(mode: ThemeMode) {
+  activeThemeMode = mode;
+}
+
+export function getThemeMode(): ThemeMode {
+  return activeThemeMode;
+}
 
 // Default export preserving backwards compatibility
 export const colors = lightColors;
 
 /**
- * Hook returning current theme colors respecting device light/dark mode preference.
+ * Hook returning current theme colors. Defaults to light mode to match
+ * the reference design specification.
  */
-export function useThemeColors(): { colors: ThemeColors; isDark: boolean } {
+export function useThemeColors(): {
+  colors: ThemeColors;
+  isDark: boolean;
+  setMode: (mode: ThemeMode) => void;
+} {
   const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const isDark =
+    activeThemeMode === "system" ? scheme === "dark" : activeThemeMode === "dark";
+
   return {
     colors: isDark ? darkColors : lightColors,
     isDark,
+    setMode: setThemeMode,
   };
 }
+

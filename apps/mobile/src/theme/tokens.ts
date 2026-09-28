@@ -1,4 +1,30 @@
-import { useWindowDimensions } from "react-native";
+import { Platform, useWindowDimensions } from "react-native";
+
+/**
+ * System font stack:
+ * - iOS: San Francisco ("System")
+ * - Android: "Roboto"
+ * - Web: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+ * Zero bundle size, feels native everywhere, and handles German umlauts and ß out of the box.
+ */
+export const systemFontFamily = Platform.select({
+  ios: "System",
+  android: "Roboto",
+  web: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  default: "system-ui, -apple-system, sans-serif",
+});
+
+export const fonts = {
+  family: systemFontFamily,
+  weights: {
+    regular: "400",
+    medium: "500",
+    semiBold: "600",
+    bold: "700",
+    heavy: "800",
+  },
+} as const;
+
 
 export const spacing = {
   xs: 4,
