@@ -2,8 +2,7 @@ services:
   - type: web
     name: tennis-league-api
     runtime: docker
-    rootDir: apps/api
-    dockerfilePath: Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free
     autoDeploy: true
