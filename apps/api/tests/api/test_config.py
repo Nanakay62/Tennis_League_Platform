@@ -23,7 +23,9 @@ def test_settings_production_requires_debug_false():
 
 
 def test_settings_production_requires_secure_secret_key():
-    with pytest.raises(ValidationError, match="SECRET_KEY must be a cryptographically secure random string"):
+    with pytest.raises(
+        ValidationError, match="SECRET_KEY must be a cryptographically secure random string"
+    ):
         Settings(
             ENVIRONMENT="production",
             DEBUG=False,
