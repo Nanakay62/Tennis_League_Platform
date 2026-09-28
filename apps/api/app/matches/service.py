@@ -65,7 +65,7 @@ async def submit_match(
     session: AsyncSession,
     reporter_user: User,
     req: SubmitMatchRequest,
-) -> Match:
+) -> tuple[Match, str, str, str]:
     """Validate and record a reported match result."""
     now_utc = datetime.now(UTC)
 
@@ -228,8 +228,15 @@ async def submit_match(
     if match_status == MatchStatus.CONFIRMED:
         await recalculate_division_standings(session, req.division_id)
 
+    # Attach dynamic player names and score summary for response
+    winner_name = (
+        reporter_profile.display_name if req.i_am_winner else opponent_profile.display_name
+    )
+    loser_name = opponent_profile.display_name if req.i_am_winner else reporter_profile.display_name
+    sets_summary = format_sets_summary(sets_payload, req.format)
+
     await session.commit()
-    return match
+    return match, winner_name, loser_name, sets_summary
 
 
 async def confirm_match(session: AsyncSession, user: User, match_id: str) -> Match:

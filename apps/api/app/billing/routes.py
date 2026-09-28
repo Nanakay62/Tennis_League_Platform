@@ -80,10 +80,32 @@ async def stripe_webhook(
     """Handle Stripe payment webhooks idempotently."""
     payload_bytes = await request.body()
 
-    try:
-        data = json.loads(payload_bytes)
-    except (json.JSONDecodeError, ValueError):
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    has_real_secret = bool(
+        settings.STRIPE_WEBHOOK_SECRET
+        and not settings.STRIPE_WEBHOOK_SECRET.startswith("whsec_placeholder")
+    )
+
+    if has_real_secret:
+        if not stripe_signature:
+            raise HTTPException(status_code=400, detail="Missing stripe-signature header")
+        try:
+            import stripe
+
+            event = stripe.Webhook.construct_event(
+                payload_bytes, stripe_signature, settings.STRIPE_WEBHOOK_SECRET
+            )
+            data = event
+        except (stripe.error.SignatureVerificationError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid webhook signature: {e}")
+    else:
+        if settings.ENVIRONMENT == "production":
+            raise HTTPException(
+                status_code=500, detail="STRIPE_WEBHOOK_SECRET must be configured in production."
+            )
+        try:
+            data = json.loads(payload_bytes)
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     event_id = data.get("id")
     event_type = data.get("type")

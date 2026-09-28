@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -50,6 +51,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     EMAIL_FROM: str = "Frankfurt Flex League <noreply@frankfurttennis.de>"
 
+    # Logging & Observability
+    LOG_LEVEL: str = "INFO"
+    SENTRY_DSN: str = ""
+
     # Background Jobs & Backups
     PROCRASTINATE_USE_IN_MEMORY: bool = False
     BACKUP_R2_ENDPOINT_URL: str = ""
@@ -57,6 +62,18 @@ class Settings(BaseSettings):
     BACKUP_R2_ACCESS_KEY_ID: str = ""
     BACKUP_R2_SECRET_ACCESS_KEY: str = ""
     BACKUP_ENCRYPTION_KEY: str = "dev-backup-encryption-key-32-chars-long!"
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        """Strict production assertions ensuring no insecure keys or debug mode in production."""
+        if self.ENVIRONMENT == "production":
+            if self.DEBUG:
+                raise ValueError("DEBUG must be False in production.")
+            if "insecure" in self.SECRET_KEY or len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "SECRET_KEY must be a cryptographically secure random string with at least 32 characters in production."
+                )
+        return self
 
     # Configurable League Rules (from Handbook Chapter 2.2)
     min_completed_sets: int = 1

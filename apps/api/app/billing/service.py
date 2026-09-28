@@ -3,6 +3,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -107,9 +108,50 @@ async def create_checkout_order(
         )
         session.add(item)
 
-    # Generate mock session ID or real Stripe session
-    session_id = f"cs_test_{uuid.uuid4()}"
-    checkout_url = req.success_url.replace("{CHECKOUT_SESSION_ID}", session_id)
+    # Check for real Stripe credentials vs sandbox/mock mode
+    is_real_stripe = bool(
+        settings.STRIPE_SECRET_KEY
+        and not settings.STRIPE_SECRET_KEY.startswith("sk_test_placeholder")
+    )
+
+    if is_real_stripe:
+        import stripe
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        line_items = [
+            {
+                "price_data": {
+                    "currency": quote.currency.lower(),
+                    "product_data": {
+                        "name": f"Program Enrollment: {line.program_id}",
+                    },
+                    "unit_amount": line.unit_price_cents,
+                },
+                "quantity": 1,
+            }
+            for line in quote.lines
+        ]
+        stripe_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=cast(Any, line_items),
+            mode="payment",
+            success_url=req.success_url,
+            cancel_url=req.cancel_url or req.success_url,
+            client_reference_id=order.id,
+            metadata={
+                "order_id": order.id,
+                "market_id": market_id,
+                "user_id": user_id,
+            },
+        )
+        session_id = stripe_session.id
+        checkout_url = stripe_session.url or req.success_url.replace(
+            "{CHECKOUT_SESSION_ID}", session_id
+        )
+    else:
+        # Development / Sandbox simulation
+        session_id = f"cs_test_{uuid.uuid4()}"
+        checkout_url = req.success_url.replace("{CHECKOUT_SESSION_ID}", session_id)
 
     order.stripe_session_id = session_id
     await session.flush()

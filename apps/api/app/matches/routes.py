@@ -32,17 +32,19 @@ async def report_match(
 ):
     """Submit a reported match score with format validation and rematch limits."""
     try:
-        match = await submit_match(session, reporter_user=user, req=req)
+        match, winner_name, loser_name, sets_summary = await submit_match(
+            session, reporter_user=user, req=req
+        )
         return MatchResponse(
             id=match.id,
             division_id=match.division_id,
             winner_id=match.winner_id,
             loser_id=match.loser_id,
-            winner_name="Winner",
-            loser_name="Opponent",
+            winner_name=winner_name,
+            loser_name=loser_name,
             format=match.format,
             outcome_type=match.outcome_type,
-            sets_summary="Score reported",
+            sets_summary=sets_summary,
             status=match.status,
             played_at=match.played_at.isoformat(),
         )

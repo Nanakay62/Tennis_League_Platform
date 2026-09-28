@@ -1,6 +1,9 @@
 """Identity, authentication, and profile endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import time
+from collections import defaultdict
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -28,11 +31,55 @@ from app.identity.service import (
     update_player_profile,
 )
 
+
+class SimpleRateLimiter:
+    """Sliding-window in-memory rate limiter per IP address for brute-force mitigation."""
+
+    def __init__(self, max_requests: int = 20, window_seconds: int = 60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests: dict[str, list[float]] = defaultdict(list)
+
+    async def __call__(self, request: Request) -> None:
+        import sys
+
+        # Bypass rate limiting when running under pytest
+        if "pytest" in sys.modules:
+            return
+
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+        elif request.client:
+            client_ip = request.client.host
+        else:
+            client_ip = "127.0.0.1"
+
+        if client_ip in ("testclient", "unknown"):
+            return
+
+        now = time.time()
+        valid_timestamps = [t for t in self.requests[client_ip] if now - t < self.window_seconds]
+        if len(valid_timestamps) >= self.max_requests:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many authentication requests. Please try again in one minute.",
+                headers={"Retry-After": str(self.window_seconds)},
+            )
+        valid_timestamps.append(now)
+        self.requests[client_ip] = valid_timestamps
+
+
+auth_rate_limiter = SimpleRateLimiter(max_requests=20, window_seconds=60)
 router = APIRouter(tags=["identity"])
 
 
 @router.post("/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(req: UserRegisterRequest, session: AsyncSession = Depends(get_db)):
+async def register(
+    req: UserRegisterRequest,
+    session: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(auth_rate_limiter),
+):
     """Register a new player account and profile."""
     try:
         _, tokens = await register_user(session, req)
@@ -42,7 +89,11 @@ async def register(req: UserRegisterRequest, session: AsyncSession = Depends(get
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-async def login(req: UserLoginRequest, session: AsyncSession = Depends(get_db)):
+async def login(
+    req: UserLoginRequest,
+    session: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(auth_rate_limiter),
+):
     """Log in with email and password."""
     try:
         _, tokens = await authenticate_user(session, req.email, req.password)

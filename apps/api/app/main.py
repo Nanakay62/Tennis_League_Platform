@@ -3,9 +3,10 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import setup_admin
 from app.admin_actions.routes import router as admin_actions_router
@@ -15,7 +16,7 @@ from app.catalog import models as _catalog_models  # noqa: F401
 from app.community import models as _community_models  # noqa: F401
 from app.community.routes import router as community_router
 from app.config import get_settings
-from app.db import Base, engine
+from app.db import Base, engine, get_db
 from app.domain.standings import (
     DivisionRules,
     compute_standings,
@@ -39,6 +40,16 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize Sentry error reporting if configured
+    if settings.SENTRY_DSN:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            environment=settings.ENVIRONMENT,
+            traces_sample_rate=1.0 if settings.ENVIRONMENT != "production" else 0.1,
+        )
+
     # Auto-initialize database tables if using SQLite or test database
     if "sqlite" in settings.DATABASE_URL:
         async with engine.begin() as conn:
@@ -53,13 +64,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration
+# CORS configuration - strictly restricted for production security
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Request-ID"],
 )
 
 app.include_router(identity_router)
@@ -80,6 +91,7 @@ class HealthResponse(BaseModel):
     environment: str
     market: str
     timezone: str
+    database: str = "ok"
 
 
 class ProgramResponse(BaseModel):
@@ -202,13 +214,23 @@ SEED_PLAYERS_RAW = [
 
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
-    """Service liveness and market status check."""
+async def health_check(session: AsyncSession = Depends(get_db)) -> HealthResponse:
+    """Service liveness, database connectivity, and market status check."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
+
+    db_status = "ok"
+    try:
+        await session.execute(text("SELECT 1"))
+    except (SQLAlchemyError, OSError) as e:
+        db_status = f"unhealthy: {type(e).__name__}"
+
     return HealthResponse(
-        status="ok",
+        status="ok" if db_status == "ok" else "degraded",
         environment=settings.ENVIRONMENT,
         market=settings.DEFAULT_MARKET_NAME,
         timezone=settings.DEFAULT_MARKET_TIMEZONE,
+        database=db_status,
     )
 
 

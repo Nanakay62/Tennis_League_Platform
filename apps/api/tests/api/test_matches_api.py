@@ -125,6 +125,9 @@ async def test_full_match_submission_confirm_and_roster_gating(
     match_data = sub_res.json()
     match_id = match_data["id"]
     assert match_data["status"] == "submitted"
+    assert match_data["winner_name"] == "Lukas Winner"
+    assert match_data["loser_name"] == "Max Opponent"
+    assert match_data["sets_summary"] == "6-3; 6-4"
 
     # 6. Opponent (Player 2) confirms the score
     conf_res = await client.post(f"/matches/{match_id}/confirm", headers=p2_headers)

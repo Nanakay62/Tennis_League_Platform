@@ -13,6 +13,7 @@ async def test_health_endpoint():
         assert data["status"] == "ok"
         assert data["market"] == "Frankfurt"
         assert data["timezone"] == "Europe/Berlin"
+        assert data["database"] == "ok"
 
 
 @pytest.mark.asyncio
