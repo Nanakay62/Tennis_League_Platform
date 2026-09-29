@@ -4,7 +4,13 @@ import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useThemeColors } from "../src/theme/colors";
-import { clearTokens, getRefreshToken, useCurrentUser, UserSession } from "../src/lib/auth";
+import {
+  clearTokens,
+  getRefreshToken,
+  useCurrentUser,
+  UserSession,
+  saveCachedUserSession,
+} from "../src/lib/auth";
 import { API_BASE_URL } from "../src/api/client";
 import { pickAndUploadAvatar } from "../src/api/avatar";
 import { AppShell, Card, ListRow, Button, Badge, Avatar } from "../src/components";
@@ -24,6 +30,12 @@ export default function AccountScreen() {
         queryClient.setQueryData<UserSession | null>(["currentUser"], (prev) =>
           prev ? { ...prev, avatarUrl: res.avatarUrl } : prev
         );
+        if (user) {
+          saveCachedUserSession({
+            ...user,
+            avatarUrl: res.avatarUrl,
+          });
+        }
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["currentUser"] }),
           queryClient.invalidateQueries({ queryKey: ["standings"] }),

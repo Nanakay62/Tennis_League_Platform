@@ -149,16 +149,19 @@ async def get_me(user: User = Depends(get_current_user)):
 @router.post("/identity/avatar/upload-url", response_model=AvatarUploadResponse)
 async def get_avatar_upload_url(
     req: AvatarUploadRequest,
+    request: Request,
     user: User = Depends(get_current_user),
 ):
     """Generate a presigned Cloudflare R2 upload URL with signed policies, or local sandbox fallback."""
     from app.identity.storage import generate_avatar_upload_payload
 
     try:
+        base_url = str(request.base_url).rstrip("/")
         return generate_avatar_upload_payload(
             user_id=user.id,
             content_type=req.content_type,
             file_size_bytes=req.file_size_bytes,
+            base_url=base_url,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -170,9 +173,36 @@ async def upload_avatar_sandbox(
     user: User = Depends(get_current_user),
 ):
     """Local development/testing sandbox upload endpoint when R2 credentials are not set."""
+    import os
+    import time
+
     form = await request.form()
-    key = str(form.get("key", f"avatars/{user.id}/sandbox.jpg"))
-    return {"status": "ok", "key": key, "public_url": f"/media/{key}"}
+    key = str(form.get("key", f"avatars/{user.id}/{int(time.time())}.jpg"))
+    file_item = form.get("file")
+
+    file_bytes: bytes = b""
+    if file_item is not None:
+        if hasattr(file_item, "read"):
+            file_bytes = await file_item.read()
+        elif isinstance(file_item, bytes):
+            file_bytes = file_item
+
+    # Persist file bytes in local media storage asynchronously
+    media_dir = "media"
+    file_path = os.path.join(media_dir, key.replace("/", os.sep))
+
+    def _write_media_file() -> None:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+
+    import anyio
+
+    await anyio.to_thread.run_sync(_write_media_file)
+
+    base_url = str(request.base_url).rstrip("/")
+    public_url = f"{base_url}/media/{key}"
+    return {"status": "ok", "key": key, "public_url": public_url}
 
 
 @router.patch("/me/profile", response_model=PlayerProfileResponse)

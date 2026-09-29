@@ -52,7 +52,7 @@ def get_r2_s3_client() -> Any | None:
 
 
 def generate_avatar_upload_payload(
-    user_id: str, content_type: str, file_size_bytes: int
+    user_id: str, content_type: str, file_size_bytes: int, base_url: str = ""
 ) -> AvatarUploadResponse:
     """Generate an R2 presigned POST with policy conditions, or sandbox fallback for local dev."""
     validate_avatar_upload(content_type, file_size_bytes)
@@ -91,9 +91,10 @@ def generate_avatar_upload_payload(
         )
 
     # Sandbox fallback when running locally or during test suites without R2 credentials
+    media_url = f"{base_url.rstrip('/')}/media/{key}" if base_url else f"/media/{key}"
     return AvatarUploadResponse(
         upload_url="/identity/avatar/upload-sandbox",
-        public_url=f"/media/{key}",
+        public_url=media_url,
         fields={"key": key, "Content-Type": content_type},
         method="POST",
     )

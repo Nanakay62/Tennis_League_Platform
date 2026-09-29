@@ -117,6 +117,10 @@ export async function pickAndUploadAvatar(): Promise<AvatarUploadResult | null> 
     throw new Error("Could not upload photo to storage. Please check your internet connection.");
   }
 
+  const finalPublicUrl = public_url.startsWith("http")
+    ? public_url
+    : `${API_BASE_URL}${public_url}`;
+
   // 3. Confirm and update player profile with new avatar URL
   const patchRes = await fetch(`${API_BASE_URL}/identity/profile`, {
     method: "PATCH",
@@ -124,14 +128,14 @@ export async function pickAndUploadAvatar(): Promise<AvatarUploadResult | null> 
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ avatar_url: public_url }),
+    body: JSON.stringify({ avatar_url: finalPublicUrl }),
   });
 
   if (!patchRes.ok) {
     throw new Error("Photo was uploaded but your profile could not be updated. Please try again.");
   }
 
-  return { avatarUrl: public_url };
+  return { avatarUrl: finalPublicUrl };
 }
 
 /**

@@ -145,3 +145,43 @@ async def test_avatar_replacement_deletes_old_r2_object(client: AsyncClient):
         _, call_kwargs = mock_s3.delete_object.call_args
         assert call_kwargs["Key"] == old_key
         assert call_kwargs["Key"] != new_key
+
+
+@pytest.mark.asyncio
+async def test_avatar_sandbox_upload_and_serve(client: AsyncClient):
+    """Verify sandbox file upload persists bytes to disk and is served via /media endpoint."""
+    headers = await get_test_auth_headers(client, "sandbox_tester@example.com")
+
+    # 1. Request upload URL (sandbox fallback)
+    url_res = await client.post(
+        "/identity/avatar/upload-url",
+        headers=headers,
+        json={"content_type": "image/jpeg", "file_size_bytes": 1024},
+    )
+    assert url_res.status_code == 200
+    upload_data = url_res.json()
+    assert "/media/" in upload_data["public_url"]
+
+    # 2. Upload file bytes to sandbox endpoint
+    fake_image_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00"
+    upload_res = await client.post(
+        "/identity/avatar/upload-sandbox",
+        headers=headers,
+        data={"key": upload_data["fields"].get("key", "avatars/test/test.jpg")},
+        files={"file": ("test.jpg", fake_image_bytes, "image/jpeg")},
+    )
+    assert upload_res.status_code == 200
+    upload_result = upload_res.json()
+    assert "public_url" in upload_result
+
+    # 3. Request served image from /media
+    media_path = upload_result["public_url"]
+    if media_path.startswith("http"):
+        # Extract path component
+        from urllib.parse import urlparse
+
+        media_path = urlparse(media_path).path
+
+    media_res = await client.get(media_path)
+    assert media_res.status_code == 200
+    assert media_res.content == fake_image_bytes

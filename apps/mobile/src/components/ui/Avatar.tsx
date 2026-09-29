@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../theme/colors";
+import { API_BASE_URL } from "../../constants/api";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl" | number;
 
@@ -69,7 +70,11 @@ export function Avatar({
   const borderRadius = Math.round(dimension / 2);
   const initials = getInitials(name);
 
-  const hasValidImage = Boolean(avatarUrl && avatarUrl.trim() && failedUrl !== avatarUrl);
+  const resolvedUrl = avatarUrl && avatarUrl.trim() ? avatarUrl.trim() : null;
+  const imageUri = resolvedUrl?.startsWith("/")
+    ? `${API_BASE_URL}${resolvedUrl}`
+    : resolvedUrl;
+  const hasValidImage = Boolean(imageUri && failedUrl !== avatarUrl && failedUrl !== imageUri);
 
   const containerStyle: ViewStyle = {
     width: dimension,
@@ -90,9 +95,9 @@ export function Avatar({
   return (
     <View style={[{ width: dimension, height: dimension, position: "relative" }, style]}>
       <View style={containerStyle}>
-        {hasValidImage ? (
+        {hasValidImage && imageUri ? (
           <Image
-            source={{ uri: avatarUrl! }}
+            source={{ uri: imageUri }}
             style={{ width: dimension, height: dimension, borderRadius }}
             onError={() => setFailedUrl(avatarUrl ?? null)}
             accessibilityRole="image"

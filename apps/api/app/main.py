@@ -85,6 +85,14 @@ app.include_router(admin_actions_router)
 # SQLAdmin back office mount at /admin
 admin = setup_admin(app)
 
+# Mount local media directory for avatars in sandbox / local development mode
+import os
+
+from fastapi.staticfiles import StaticFiles
+
+os.makedirs("media", exist_ok=True)
+app.mount("/media", StaticFiles(directory="media"), name="media")
+
 
 # Pydantic Schemas for API contract
 class HealthResponse(BaseModel):

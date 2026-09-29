@@ -61,6 +61,7 @@ ios/
 *.sqlite
 *.db
 pgdata/
+media/
 
 # OS / Editor
 .DS_Store
