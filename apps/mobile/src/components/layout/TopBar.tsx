@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../theme/colors";
-import { fetchCurrentUser, UserSession } from "../../lib/auth";
-import { getPlayerAvatar } from "../../constants/mockImages";
-
+import { useCurrentUser } from "../../lib/auth";
+import { Avatar } from "../ui/Avatar";
 import { useResponsive } from "../../theme/tokens";
 
 export interface TopBarProps {
@@ -24,13 +23,9 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
   const { colors } = useThemeColors();
   const { isDesktop } = useResponsive();
   const router = useRouter();
-  const [user, setUser] = useState<UserSession | null>(null);
+  const { data: user } = useCurrentUser();
 
-  useEffect(() => {
-    fetchCurrentUser().then(setUser).catch(() => {});
-  }, []);
-
-  const displayName = user?.displayName || "Max Weber";
+  const displayName = user?.displayName || "Player";
 
   return (
     <View
@@ -90,19 +85,11 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
             accessibilityRole="button"
             accessibilityLabel="My Account"
           >
-            <View
-              style={StyleSheet.flatten([
-                styles.avatarButton,
-                {
-                  borderColor: colors.borderSubtle,
-                },
-              ])}
-            >
-              <Image
-                source={getPlayerAvatar(displayName)}
-                style={styles.avatarImage}
-              />
-            </View>
+            <Avatar
+              name={displayName}
+              avatarUrl={user?.avatarUrl}
+              size="sm"
+            />
 
             {isDesktop && (
               <View style={styles.userDropdownRow}>

@@ -1,4 +1,5 @@
 // UI Components
+export * from "./ui/Avatar";
 export * from "./ui/Card";
 export * from "./ui/MetricCard";
 export * from "./ui/ListRow";

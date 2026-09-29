@@ -13,7 +13,8 @@ import { useThemeColors } from "../../theme/colors";
 import { useResponsive } from "../../theme/tokens";
 import { StandingRow } from "../../api/client";
 import { Badge } from "./Badge";
-import { getPlayerAvatar } from "../../constants/mockImages";
+import { Avatar } from "./Avatar";
+import { useCurrentUser } from "../../lib/auth";
 
 export interface StandingsTableProps {
   standings: StandingRow[];
@@ -36,6 +37,7 @@ export function StandingsTable({
 }: StandingsTableProps) {
   const { colors } = useThemeColors();
   const { isMobile } = useResponsive();
+  const { data: currentUser } = useCurrentUser();
   const [legendOpen, setLegendOpen] = useState(false);
 
   const effectiveMode = mode === "auto" ? (isMobile ? "cards" : "table") : mode;
@@ -119,9 +121,11 @@ export function StandingsTable({
                 </Text>
 
                 <View style={[styles.colPlayer, styles.playerCell]}>
-                  <Image
-                    source={getPlayerAvatar(row.playerName)}
-                    style={styles.tableAvatar}
+                  <Avatar
+                    name={row.playerName}
+                    avatarUrl={isMe ? currentUser?.avatarUrl : (row as any).avatarUrl}
+                    size="xs"
+                    style={{ marginRight: 8 }}
                   />
                   <Text
                     style={[styles.tdName, { color: colors.textPrimary }]}
@@ -203,9 +207,11 @@ export function StandingsTable({
                     </Text>
                   </View>
 
-                  <Image
-                    source={getPlayerAvatar(row.playerName)}
-                    style={styles.cardAvatar}
+                  <Avatar
+                    name={row.playerName}
+                    avatarUrl={isMe ? currentUser?.avatarUrl : (row as any).avatarUrl}
+                    size="sm"
+                    style={{ marginRight: 10 }}
                   />
 
                   <View style={styles.cardPlayerInfo}>

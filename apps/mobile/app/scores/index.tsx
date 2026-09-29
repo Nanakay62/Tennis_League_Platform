@@ -13,8 +13,7 @@ import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../src/theme/colors";
 import { getLatestScoresFeed, LatestScoreFeedItem } from "../../src/api/client";
 import { formatScoreForScreenReader } from "../../src/lib/accessibility";
-import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
-import { getPlayerAvatar } from "../../src/constants/mockImages";
+import { AppShell, Card, Badge, Button, EmptyState, Avatar } from "../../src/components";
 
 export default function LatestScoresScreen() {
   const { colors } = useThemeColors();
@@ -56,10 +55,7 @@ export default function LatestScoresScreen() {
           <View style={styles.playersColumn}>
             {/* Winner */}
             <View style={styles.playerRow}>
-              <Image
-                source={getPlayerAvatar(item.winner_name)}
-                style={styles.playerAvatar}
-              />
+              <Avatar name={item.winner_name} size="xs" style={{ marginRight: 8 }} />
               <Text
                 style={[styles.winnerName, { color: colors.textPrimary }]}
                 numberOfLines={1}
@@ -76,10 +72,7 @@ export default function LatestScoresScreen() {
 
             {/* Loser */}
             <View style={styles.playerRow}>
-              <Image
-                source={getPlayerAvatar(item.loser_name)}
-                style={styles.playerAvatar}
-              />
+              <Avatar name={item.loser_name} size="xs" style={{ marginRight: 8 }} />
               <Text
                 style={[styles.loserName, { color: colors.textSecondary }]}
                 numberOfLines={1}

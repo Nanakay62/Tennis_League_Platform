@@ -88,8 +88,14 @@ class Settings(BaseSettings):
     BACKUP_R2_ENDPOINT_URL: str = ""
     BACKUP_R2_BUCKET: str = "tennis-league-backups"
     BACKUP_R2_ACCESS_KEY_ID: str = ""
-    BACKUP_R2_SECRET_ACCESS_KEY: str = ""
     BACKUP_ENCRYPTION_KEY: str = "dev-backup-encryption-key-32-chars-long!"
+
+    # Avatar Storage (Cloudflare R2)
+    AVATAR_R2_BUCKET: str = "tennis-league-avatars"
+    AVATAR_R2_ENDPOINT_URL: str = ""
+    AVATAR_R2_ACCESS_KEY_ID: str = ""
+    AVATAR_R2_SECRET_ACCESS_KEY: str = ""
+    AVATAR_PUBLIC_BASE_URL: str = ""
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":

@@ -38,6 +38,7 @@ class PlayerProfileResponse(BaseModel):
     is_daytime: bool
     veteran_match_count: int
     is_anonymized: bool
+    avatar_url: str | None = None
 
 
 class PlayerProfileUpdate(BaseModel):
@@ -45,6 +46,19 @@ class PlayerProfileUpdate(BaseModel):
     phone: str | None = None
     home_area: str | None = None
     is_daytime: bool | None = None
+    avatar_url: str | None = None
+
+
+class AvatarUploadRequest(BaseModel):
+    content_type: str
+    file_size_bytes: int
+
+
+class AvatarUploadResponse(BaseModel):
+    upload_url: str
+    public_url: str
+    fields: dict[str, str] = Field(default_factory=dict)
+    method: str = "POST"
 
 
 class UserResponse(BaseModel):

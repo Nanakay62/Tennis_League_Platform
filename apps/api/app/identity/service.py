@@ -210,6 +210,13 @@ async def update_player_profile(
         profile.home_area = updates.home_area
     if updates.is_daytime is not None:
         profile.is_daytime = updates.is_daytime
+    if updates.avatar_url is not None:
+        old_avatar = profile.avatar_url
+        if old_avatar and old_avatar != updates.avatar_url:
+            from app.identity.storage import delete_avatar_from_r2
+
+            delete_avatar_from_r2(user_id, old_avatar)
+        profile.avatar_url = updates.avatar_url
 
     await session.flush()
     return profile
@@ -246,6 +253,12 @@ async def delete_and_anonymize_user(session: AsyncSession, user_id: str) -> None
     if not user:
         raise ValueError("User not found.")
 
+    # Delete avatar from R2 storage if exists
+    if user.profile and user.profile.avatar_url:
+        from app.identity.storage import delete_avatar_from_r2
+
+        delete_avatar_from_r2(user_id, user.profile.avatar_url)
+
     # Scrub email and password
     user.email = f"deleted-{user.id}@anonymized.local"
     user.hashed_password = "DELETED"
@@ -257,6 +270,7 @@ async def delete_and_anonymize_user(session: AsyncSession, user_id: str) -> None
         user.profile.phone = ""
         user.profile.home_area = ""
         user.profile.is_anonymized = True
+        user.profile.avatar_url = None
 
     # Revoke all refresh tokens
     for token in user.refresh_tokens:

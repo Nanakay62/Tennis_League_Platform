@@ -69,6 +69,7 @@ class PlayerProfile(Base):
     is_daytime: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # (d) flag
     veteran_match_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_anonymized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
 
     user: Mapped["User"] = relationship("User", back_populates="profile")
 

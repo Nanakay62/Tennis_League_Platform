@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from "../api/client";
 
 const ACCESS_TOKEN_KEY = "tennis_access_token";
@@ -13,6 +14,7 @@ export interface UserSession {
   rating: string;
   homeArea: string;
   isDaytime: boolean;
+  avatarUrl?: string | null;
 }
 
 export async function saveTokens(accessToken: string, refreshToken: string): Promise<void> {
@@ -90,8 +92,18 @@ export async function fetchCurrentUser(): Promise<UserSession | null> {
       rating: data.profile?.rating || "3.5",
       homeArea: data.profile?.home_area || "Frankfurt",
       isDaytime: data.profile?.is_daytime || false,
+      avatarUrl: data.profile?.avatar_url || null,
     };
   } catch (err) {
     return null;
   }
 }
+
+export function useCurrentUser() {
+  return useQuery<UserSession | null>({
+    queryKey: ["currentUser"],
+    queryFn: fetchCurrentUser,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+

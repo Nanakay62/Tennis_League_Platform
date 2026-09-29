@@ -11,6 +11,8 @@ from app.identity.deps import get_current_user
 from app.identity.models import User
 from app.identity.schemas import (
     AppVersionResponse,
+    AvatarUploadRequest,
+    AvatarUploadResponse,
     CommunicationSettingsResponse,
     CommunicationSettingsUpdate,
     PlayerProfileResponse,
@@ -131,6 +133,7 @@ async def get_me(user: User = Depends(get_current_user)):
             is_daytime=user.profile.is_daytime,
             veteran_match_count=user.profile.veteran_match_count,
             is_anonymized=user.profile.is_anonymized,
+            avatar_url=user.profile.avatar_url,
         )
 
     return UserResponse(
@@ -143,7 +146,37 @@ async def get_me(user: User = Depends(get_current_user)):
     )
 
 
+@router.post("/identity/avatar/upload-url", response_model=AvatarUploadResponse)
+async def get_avatar_upload_url(
+    req: AvatarUploadRequest,
+    user: User = Depends(get_current_user),
+):
+    """Generate a presigned Cloudflare R2 upload URL with signed policies, or local sandbox fallback."""
+    from app.identity.storage import generate_avatar_upload_payload
+
+    try:
+        return generate_avatar_upload_payload(
+            user_id=user.id,
+            content_type=req.content_type,
+            file_size_bytes=req.file_size_bytes,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/identity/avatar/upload-sandbox")
+async def upload_avatar_sandbox(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    """Local development/testing sandbox upload endpoint when R2 credentials are not set."""
+    form = await request.form()
+    key = str(form.get("key", f"avatars/{user.id}/sandbox.jpg"))
+    return {"status": "ok", "key": key, "public_url": f"/media/{key}"}
+
+
 @router.patch("/me/profile", response_model=PlayerProfileResponse)
+@router.patch("/identity/profile", response_model=PlayerProfileResponse)
 async def update_profile(
     updates: PlayerProfileUpdate,
     user: User = Depends(get_current_user),
@@ -159,6 +192,7 @@ async def update_profile(
         is_daytime=profile.is_daytime,
         veteran_match_count=profile.veteran_match_count,
         is_anonymized=profile.is_anonymized,
+        avatar_url=profile.avatar_url,
     )
 
 

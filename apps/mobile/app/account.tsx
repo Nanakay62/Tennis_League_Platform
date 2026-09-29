@@ -1,27 +1,42 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { useThemeColors } from "../src/theme/colors";
-import { clearTokens, fetchCurrentUser, getRefreshToken, UserSession } from "../src/lib/auth";
+import { clearTokens, getRefreshToken, useCurrentUser, UserSession } from "../src/lib/auth";
 import { API_BASE_URL } from "../src/api/client";
-import { AppShell, Card, ListRow, Button, Badge } from "../src/components";
+import { pickAndUploadAvatar } from "../src/api/avatar";
+import { AppShell, Card, ListRow, Button, Badge, Avatar } from "../src/components";
 
 export default function AccountScreen() {
   const { colors } = useThemeColors();
   const router = useRouter();
-  const [user, setUser] = useState<UserSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loading } = useCurrentUser();
+  const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  async function loadUser() {
-    setLoading(true);
-    const session = await fetchCurrentUser();
-    setUser(session);
-    setLoading(false);
+  async function handlePickAvatar() {
+    try {
+      setIsUploading(true);
+      const res = await pickAndUploadAvatar();
+      if (res) {
+        queryClient.setQueryData<UserSession | null>(["currentUser"], (prev) =>
+          prev ? { ...prev, avatarUrl: res.avatarUrl } : prev
+        );
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["currentUser"] }),
+          queryClient.invalidateQueries({ queryKey: ["standings"] }),
+          queryClient.invalidateQueries({ queryKey: ["scores"] }),
+          queryClient.invalidateQueries({ queryKey: ["poty"] }),
+          queryClient.invalidateQueries({ queryKey: ["partners"] }),
+        ]);
+      }
+    } catch (err: any) {
+      Alert.alert("Upload Error", err.message || "Failed to update profile photo.");
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   async function handleLogout() {
@@ -36,7 +51,7 @@ export default function AccountScreen() {
       }
     } finally {
       await clearTokens();
-      setUser(null);
+      queryClient.setQueryData(["currentUser"], null);
       router.replace("/");
     }
   }
@@ -96,11 +111,14 @@ export default function AccountScreen() {
         <View style={styles.contentWrap}>
           {/* Profile Card */}
           <Card style={styles.profileCard} contentStyle={styles.profileCardContent}>
-            <View style={[styles.avatar, { backgroundColor: colors.accentSecondary, borderColor: colors.borderSubtle }]}>
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {user.displayName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <Avatar
+              name={user.displayName}
+              avatarUrl={user.avatarUrl}
+              size="xl"
+              showEditBadge
+              onEditPress={handlePickAvatar}
+              isLoading={isUploading}
+            />
 
             <View style={styles.profileDetails}>
               <Text style={[styles.userName, { color: colors.textPrimary }]}>

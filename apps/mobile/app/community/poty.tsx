@@ -17,8 +17,7 @@ import {
   getReferralInfo,
   POTYItem,
 } from "../../src/api/client";
-import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
-import { getPlayerAvatar } from "../../src/constants/mockImages";
+import { AppShell, Card, Badge, Button, EmptyState, Avatar } from "../../src/components";
 
 export default function POTYLeaderboardScreen() {
   const { colors, isDark } = useThemeColors();
@@ -61,10 +60,7 @@ export default function POTYLeaderboardScreen() {
         </Text>
       </View>
 
-      <Image
-        source={getPlayerAvatar(item.display_name)}
-        style={styles.playerAvatar}
-      />
+      <Avatar name={item.display_name} size="sm" style={{ marginRight: 10 }} />
 
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={[styles.playerName, { color: colors.textPrimary }]}>
@@ -141,9 +137,10 @@ export default function POTYLeaderboardScreen() {
           {top3[1] && (
             <View style={[styles.podiumCol, { marginTop: 24 }]}>
               <Badge variant="neutral" icon="award" label="2nd" size="sm" />
-              <Image
-                source={getPlayerAvatar(top3[1].display_name)}
-                style={styles.podiumAvatar}
+              <Avatar
+                name={top3[1].display_name}
+                size={48}
+                style={{ marginVertical: 8 }}
               />
               <Text
                 style={[styles.podiumName, { color: colors.textPrimary }]}
@@ -171,9 +168,10 @@ export default function POTYLeaderboardScreen() {
           {top3[0] && (
             <View style={styles.podiumCol}>
               <Badge variant="warning" icon="award" label="Champion" size="sm" />
-              <Image
-                source={getPlayerAvatar(top3[0].display_name)}
-                style={[styles.podiumAvatar, styles.championAvatar, { borderColor: colors.primary }]}
+              <Avatar
+                name={top3[0].display_name}
+                size={56}
+                style={{ marginVertical: 8 }}
               />
               <Text
                 style={[styles.podiumName, { color: colors.textPrimary, fontWeight: "800" }]}
@@ -201,9 +199,10 @@ export default function POTYLeaderboardScreen() {
           {top3[2] && (
             <View style={[styles.podiumCol, { marginTop: 36 }]}>
               <Badge variant="neutral" icon="award" label="3rd" size="sm" />
-              <Image
-                source={getPlayerAvatar(top3[2].display_name)}
-                style={styles.podiumAvatar}
+              <Avatar
+                name={top3[2].display_name}
+                size={48}
+                style={{ marginVertical: 8 }}
               />
               <Text
                 style={[styles.podiumName, { color: colors.textPrimary }]}

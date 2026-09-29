@@ -13,8 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../src/theme/colors";
 import { getCompatiblePartners, PartnerMatch } from "../../src/api/client";
-import { AppShell, Card, Badge, Button, EmptyState } from "../../src/components";
-import { getPlayerAvatar } from "../../src/constants/mockImages";
+import { AppShell, Card, Badge, Button, EmptyState, Avatar } from "../../src/components";
 
 export default function PartnerProgramScreen() {
   const { colors, isDark } = useThemeColors();
@@ -41,12 +40,9 @@ export default function PartnerProgramScreen() {
   const renderItem = ({ item }: { item: PartnerMatch }) => (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
-        <Image
-          source={getPlayerAvatar(item.display_name)}
-          style={styles.avatar}
-        />
+        <Avatar name={item.display_name} size="md" style={{ marginRight: 12 }} />
 
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={{ flex: 1 }}>
           <View style={styles.nameRow}>
             <Text style={[styles.partnerName, { color: colors.textPrimary }]}>
               {item.display_name}

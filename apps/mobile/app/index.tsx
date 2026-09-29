@@ -30,8 +30,10 @@ import {
   Button,
   Badge,
   StandingsTable,
+  Avatar,
 } from "../src/components";
-import { MOCK_IMAGES, getPlayerAvatar } from "../src/constants/mockImages";
+import { MOCK_IMAGES } from "../src/constants/mockImages";
+import { useCurrentUser } from "../src/lib/auth";
 
 
 export default function HomeScreen() {
@@ -39,6 +41,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
+  const { data: authUser } = useCurrentUser();
   const [user, setUser] = useState<UserSession | null>(null);
   const [roster, setRoster] = useState<RosterPlayerResponse[]>([]);
   const [standings, setStandings] = useState<StandingRow[]>([]);
@@ -77,8 +80,10 @@ export default function HomeScreen() {
     roster[0] ||
     null;
 
+  const effectiveUser = authUser || user;
   const opponentName = opponent ? opponent.display_name : "Lukas Schmidt";
-  const userName = user?.displayName || "Maximilian Weber";
+  const userName = effectiveUser?.displayName || "Player";
+  const userAvatarUrl = effectiveUser?.avatarUrl;
 
   // Top 3 for compact preview
   const topStandings = standings.slice(0, 3);
@@ -204,7 +209,7 @@ export default function HomeScreen() {
             {/* Player 1 (User) */}
             <View style={styles.playerBlock}>
               <View style={styles.avatarWrapper}>
-                <Image source={MOCK_IMAGES.avatars.max} style={styles.heroAvatar} />
+                <Avatar name={userName} avatarUrl={userAvatarUrl} size="lg" />
                 <View style={styles.youBadge}>
                   <Text style={styles.youBadgeText}>YOU</Text>
                 </View>
@@ -227,10 +232,7 @@ export default function HomeScreen() {
 
             {/* Player 2 (Opponent) */}
             <View style={styles.playerBlock}>
-              <Image
-                source={getPlayerAvatar(opponentName)}
-                style={styles.heroAvatar}
-              />
+              <Avatar name={opponentName} size="lg" />
               <Text
                 style={[styles.heroPlayerName, { color: colors.textPrimary }]}
                 numberOfLines={1}
@@ -421,10 +423,7 @@ export default function HomeScreen() {
 
                       {/* Winner Row */}
                       <View style={styles.resultPlayerRow}>
-                        <Image
-                          source={getPlayerAvatar(match.winner_name)}
-                          style={styles.resultAvatar}
-                        />
+                        <Avatar name={match.winner_name} size="xs" style={{ marginRight: 6 }} />
                         <Text
                           style={[styles.resultWinnerName, { color: colors.textPrimary }]}
                           numberOfLines={1}
@@ -440,10 +439,7 @@ export default function HomeScreen() {
 
                       {/* Loser Row */}
                       <View style={styles.resultPlayerRow}>
-                        <Image
-                          source={getPlayerAvatar(match.loser_name)}
-                          style={styles.resultAvatar}
-                        />
+                        <Avatar name={match.loser_name} size="xs" style={{ marginRight: 6 }} />
                         <Text
                           style={[styles.resultLoserName, { color: colors.textSecondary }]}
                           numberOfLines={1}
