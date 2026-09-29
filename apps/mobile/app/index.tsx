@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { fetchCurrentUser, UserSession } from "../src/lib/auth";
+import { useCurrentUser, UserSession } from "../src/lib/auth";
 import {
   getDivisionStandings,
   getDivisionRoster,
@@ -33,7 +33,6 @@ import {
   Avatar,
 } from "../src/components";
 import { MOCK_IMAGES } from "../src/constants/mockImages";
-import { useCurrentUser } from "../src/lib/auth";
 
 
 export default function HomeScreen() {
@@ -41,8 +40,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
-  const { data: authUser } = useCurrentUser();
-  const [user, setUser] = useState<UserSession | null>(null);
+  const { data: user } = useCurrentUser();
   const [roster, setRoster] = useState<RosterPlayerResponse[]>([]);
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [recentScores, setRecentScores] = useState<LatestScoreFeedItem[]>([]);
@@ -52,14 +50,12 @@ export default function HomeScreen() {
     async function loadDashboardData() {
       setLoading(true);
       try {
-        const [userData, rosterRes, standingsData, scoresData] = await Promise.all([
-          fetchCurrentUser(),
+        const [rosterRes, standingsData, scoresData] = await Promise.all([
           getDivisionRoster("div-comp-1"),
           getDivisionStandings("div-comp-1"),
           getLatestScoresFeed(),
         ]);
 
-        setUser(userData);
         setRoster(rosterRes.players || []);
         setStandings(standingsData || []);
         setRecentScores((scoresData || []).slice(0, 2));
@@ -80,10 +76,9 @@ export default function HomeScreen() {
     roster[0] ||
     null;
 
-  const effectiveUser = authUser || user;
   const opponentName = opponent ? opponent.display_name : "Lukas Schmidt";
-  const userName = effectiveUser?.displayName || "Player";
-  const userAvatarUrl = effectiveUser?.avatarUrl;
+  const userName = user?.displayName || "Player";
+  const userAvatarUrl = user?.avatarUrl;
 
   // Top 3 for compact preview
   const topStandings = standings.slice(0, 3);

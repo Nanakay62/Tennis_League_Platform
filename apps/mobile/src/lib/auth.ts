@@ -5,6 +5,7 @@ import { API_BASE_URL } from "../api/client";
 
 const ACCESS_TOKEN_KEY = "tennis_access_token";
 const REFRESH_TOKEN_KEY = "tennis_refresh_token";
+const CACHED_USER_KEY = "tennis_cached_user";
 
 export interface UserSession {
   id: string;
@@ -15,6 +16,32 @@ export interface UserSession {
   homeArea: string;
   isDaytime: boolean;
   avatarUrl?: string | null;
+}
+
+export function getCachedUserSession(): UserSession | null {
+  if (Platform.OS === "web") {
+    try {
+      const raw = localStorage.getItem(CACHED_USER_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function saveCachedUserSession(user: UserSession | null): void {
+  if (Platform.OS === "web") {
+    try {
+      if (user) {
+        localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+      } else {
+        localStorage.removeItem(CACHED_USER_KEY);
+      }
+    } catch (e) {
+      console.warn("Could not save cached user to localStorage:", e);
+    }
+  }
 }
 
 export async function saveTokens(accessToken: string, refreshToken: string): Promise<void> {
@@ -54,10 +81,12 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 export async function clearTokens(): Promise<void> {
+  saveCachedUserSession(null);
   if (Platform.OS === "web") {
     try {
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(CACHED_USER_KEY);
     } catch {}
   } else {
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
@@ -66,15 +95,46 @@ export async function clearTokens(): Promise<void> {
 }
 
 export async function fetchCurrentUser(): Promise<UserSession | null> {
-  const token = await getAccessToken();
-  if (!token) return null;
+  let token = await getAccessToken();
+  if (!token) {
+    saveCachedUserSession(null);
+    return null;
+  }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/me`, {
+    let res = await fetch(`${API_BASE_URL}/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+
+    // If 401 Unauthorized, attempt silent token refresh before clearing tokens
+    if (res.status === 401) {
+      const refreshToken = await getRefreshToken();
+      if (refreshToken) {
+        try {
+          const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+
+          if (refreshRes.ok) {
+            const tokenData = await refreshRes.json();
+            await saveTokens(tokenData.access_token, tokenData.refresh_token);
+            token = tokenData.access_token;
+            // Retry /me with refreshed access token
+            res = await fetch(`${API_BASE_URL}/me`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+          }
+        } catch {
+          // Token refresh network failure
+        }
+      }
+    }
 
     if (!res.ok) {
       if (res.status === 401) {
@@ -84,7 +144,7 @@ export async function fetchCurrentUser(): Promise<UserSession | null> {
     }
 
     const data = await res.json();
-    return {
+    const session: UserSession = {
       id: data.id,
       email: data.email,
       role: data.role,
@@ -94,8 +154,12 @@ export async function fetchCurrentUser(): Promise<UserSession | null> {
       isDaytime: data.profile?.is_daytime || false,
       avatarUrl: data.profile?.avatar_url || null,
     };
+
+    saveCachedUserSession(session);
+    return session;
   } catch (err) {
-    return null;
+    // Return cached session on network errors to maintain user state
+    return getCachedUserSession();
   }
 }
 
@@ -103,7 +167,7 @@ export function useCurrentUser() {
   return useQuery<UserSession | null>({
     queryKey: ["currentUser"],
     queryFn: fetchCurrentUser,
-    staleTime: 1000 * 60 * 2,
+    initialData: getCachedUserSession,
+    staleTime: 1000 * 60,
   });
 }
-

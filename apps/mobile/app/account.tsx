@@ -52,6 +52,7 @@ export default function AccountScreen() {
     } finally {
       await clearTokens();
       queryClient.setQueryData(["currentUser"], null);
+      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       router.replace("/");
     }
   }

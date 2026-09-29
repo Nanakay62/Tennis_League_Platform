@@ -9,12 +9,14 @@ import {
   ScrollView,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "../../src/theme/colors";
 import { API_BASE_URL } from "../../src/api/client";
-import { saveTokens } from "../../src/lib/auth";
+import { saveTokens, fetchCurrentUser } from "../../src/lib/auth";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +64,12 @@ export default function RegisterScreen() {
 
       const tokens = await res.json();
       await saveTokens(tokens.access_token, tokens.refresh_token);
+
+      // Pre-seed query cache immediately so TopBar & AccountScreen mount with user profile instantly
+      const user = await fetchCurrentUser();
+      queryClient.setQueryData(["currentUser"], user);
+      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+
       router.replace("/account");
     } catch (err: any) {
       setErrorMsg(err.message || "Could not complete registration.");
