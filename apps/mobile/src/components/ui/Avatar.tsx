@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   StyleProp,
   ViewStyle,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../theme/colors";
@@ -24,7 +25,7 @@ export interface AvatarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const SIZE_MAP: Record<"xs" | "sm" | "md" | "lg" | "xl", number> = {
+export const SIZE_MAP: Record<"xs" | "sm" | "md" | "lg" | "xl", number> = {
   xs: 24,
   sm: 34,
   md: 40,
@@ -32,7 +33,7 @@ const SIZE_MAP: Record<"xs" | "sm" | "md" | "lg" | "xl", number> = {
   xl: 80,
 };
 
-const FONT_SIZE_MAP: Record<"xs" | "sm" | "md" | "lg" | "xl", number> = {
+export const FONT_SIZE_MAP: Record<"xs" | "sm" | "md" | "lg" | "xl", number> = {
   xs: 10,
   sm: 13,
   md: 15,
@@ -61,21 +62,14 @@ export function Avatar({
   style,
 }: AvatarProps) {
   const { colors } = useThemeColors();
-  const [imageError, setImageError] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
   const dimension = typeof size === "number" ? size : SIZE_MAP[size] || SIZE_MAP.md;
   const fontSize = typeof size === "number" ? Math.round(size * 0.36) : FONT_SIZE_MAP[size] || FONT_SIZE_MAP.md;
   const borderRadius = Math.round(dimension / 2);
   const initials = getInitials(name);
 
-  // If a new avatarUrl is passed, reset error state
-  const prevUrlRef = React.useRef(avatarUrl);
-  if (prevUrlRef.current !== avatarUrl) {
-    prevUrlRef.current = avatarUrl;
-    setImageError(false);
-  }
-
-  const hasValidImage = Boolean(avatarUrl && avatarUrl.trim() && !imageError);
+  const hasValidImage = Boolean(avatarUrl && avatarUrl.trim() && failedUrl !== avatarUrl);
 
   const containerStyle: ViewStyle = {
     width: dimension,
@@ -100,7 +94,7 @@ export function Avatar({
           <Image
             source={{ uri: avatarUrl! }}
             style={{ width: dimension, height: dimension, borderRadius }}
-            onError={() => setImageError(true)}
+            onError={() => setFailedUrl(avatarUrl ?? null)}
             accessibilityRole="image"
             accessibilityLabel={name ? `${name}'s profile photo` : "Profile photo"}
           />
@@ -173,10 +167,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: "0px 1px 2px rgba(0,0,0,0.25)",
+      } as any,
+      default: {
+        elevation: 3,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.25,
+        shadowRadius: 2,
+      },
+    }),
   },
 });

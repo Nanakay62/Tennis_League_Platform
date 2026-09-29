@@ -1,5 +1,7 @@
 """Tests for avatar upload URL generation, validation, and profile photo updates."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from httpx import AsyncClient
 
@@ -100,3 +102,46 @@ async def test_avatar_upload_unauthenticated(client: AsyncClient):
         json={"content_type": "image/jpeg", "file_size_bytes": 1000},
     )
     assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_avatar_replacement_deletes_old_r2_object(client: AsyncClient):
+    """Verify replacing an avatar invokes R2 delete_object on the previous file key, not the new one."""
+    headers = await get_test_auth_headers(client, "r2cleanup@example.com")
+
+    # Get user id to construct realistic R2 storage keys
+    me_res = await client.get("/me", headers=headers)
+    assert me_res.status_code == 200
+    user_id = me_res.json()["id"]
+
+    old_key = f"avatars/{user_id}/1720000000.jpg"
+    old_url = f"https://cdn.tennis-league.de/{old_key}"
+
+    new_key = f"avatars/{user_id}/1720001000.jpg"
+    new_url = f"https://cdn.tennis-league.de/{new_key}"
+
+    # Set initial avatar photo
+    init_res = await client.patch(
+        "/me/profile",
+        headers=headers,
+        json={"avatar_url": old_url},
+    )
+    assert init_res.status_code == 200
+    assert init_res.json()["avatar_url"] == old_url
+
+    # Mock R2 client to verify delete_object call
+    mock_s3 = MagicMock()
+    with patch("app.identity.storage.get_r2_s3_client", return_value=mock_s3):
+        replace_res = await client.patch(
+            "/me/profile",
+            headers=headers,
+            json={"avatar_url": new_url},
+        )
+        assert replace_res.status_code == 200
+        assert replace_res.json()["avatar_url"] == new_url
+
+        # Verify delete_object was called exactly once with the old object key
+        mock_s3.delete_object.assert_called_once()
+        _, call_kwargs = mock_s3.delete_object.call_args
+        assert call_kwargs["Key"] == old_key
+        assert call_kwargs["Key"] != new_key

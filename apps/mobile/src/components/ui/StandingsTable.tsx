@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
 } from "react-native";
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
