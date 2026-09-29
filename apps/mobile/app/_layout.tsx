@@ -17,20 +17,6 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
     const styleEl = document.createElement("style");
     styleEl.id = styleId;
     styleEl.textContent = `
-      @font-face {
-        font-family: 'feather';
-        src: url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
-      @font-face {
-        font-family: 'Feather';
-        src: url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
       html, body, input, select, textarea {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -63,8 +49,8 @@ export default function RootLayout() {
   const { colors: themeColors, isDark } = useThemeColors();
   const [fontsLoaded] = useFonts(Feather.font);
 
-  // Wait for icon font before rendering to avoid brief missing-glyph flash
-  if (!fontsLoaded) return null;
+  // Wait for icon font before rendering on native; allow immediate rendering on web to prevent React 18 hydration error #418
+  if (!fontsLoaded && Platform.OS !== "web") return null;
 
   return (
     <SafeAreaProvider>

@@ -45,6 +45,7 @@ class Settings(BaseSettings):
         "http://localhost:19006",
         "http://localhost:3000",
         "http://127.0.0.1:8081",
+        "https://tennis-league-platform.vercel.app",
     ]
 
     @field_validator("CORS_ORIGINS", mode="after")
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
             "http://localhost:19006",
             "http://localhost:3000",
             "http://127.0.0.1:8081",
+            "https://tennis-league-platform.vercel.app",
         ]
         if isinstance(v, str):
             v = v.strip()
