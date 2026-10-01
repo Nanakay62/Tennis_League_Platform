@@ -139,7 +139,7 @@ export default function JoinTodayScreen() {
     <AppShell title="JOIN TODAY" showBack>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Join Frankfurt League
+          Join Accra League
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Select your season package. Guaranteed minimum 6 playing partners.
@@ -204,7 +204,7 @@ export default function JoinTodayScreen() {
                       {item.name}
                     </Text>
                     <Text style={[styles.priceTag, { color: colors.primary }]}>
-                      €{(item.priceCents / 100).toFixed(2)}
+                      GH₵ {(item.priceCents / 100).toFixed(2)}
                     </Text>
                   </View>
 
@@ -225,7 +225,7 @@ export default function JoinTodayScreen() {
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Subtotal</Text>
                 <Text style={[styles.summaryVal, { color: colors.textPrimary }]}>
-                  €{quote.subtotal.toFixed(2)}
+                  GH₵ {quote.subtotal.toFixed(2)}
                 </Text>
               </View>
 
@@ -255,7 +255,7 @@ export default function JoinTodayScreen() {
                 icon="credit-card"
                 style={styles.checkoutBtn}
               >
-                Pay with Stripe • GH₵ {quote.finalCost.toFixed(2)}
+                Pay with MoMo / Card • GH₵ {quote.finalCost.toFixed(2)}
               </Button>
             </Card>
           )}

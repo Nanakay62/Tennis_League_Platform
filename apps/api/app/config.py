@@ -34,10 +34,15 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 
-    # Stripe (Test Mode)
+    # Stripe (Legacy / International)
     STRIPE_SECRET_KEY: str = "sk_test_placeholder"
     STRIPE_WEBHOOK_SECRET: str = "whsec_placeholder"
     STRIPE_PUBLISHABLE_KEY: str = "pk_test_placeholder"
+
+    # Paystack (Ghana Mobile Money & Cards)
+    PAYSTACK_SECRET_KEY: str = "sk_test_paystack_placeholder"
+    PAYSTACK_PUBLIC_KEY: str = "pk_test_paystack_placeholder"
+    PAYSTACK_API_BASE_URL: str = "https://api.paystack.co"
 
     # CORS & Client
     CORS_ORIGINS: list[str] | str = [

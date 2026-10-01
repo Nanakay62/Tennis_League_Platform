@@ -1,9 +1,9 @@
-"""Billing API routes: cart quote, checkout session creation, webhooks, and orders."""
-
+import hashlib
+import hmac
 import json
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,7 +17,12 @@ from app.billing.schemas import (
     QuoteRequest,
     QuoteResponse,
 )
-from app.billing.service import create_checkout_order, fulfill_stripe_checkout, get_cart_quote
+from app.billing.service import (
+    create_checkout_order,
+    fulfill_paystack_payment,
+    fulfill_stripe_checkout,
+    get_cart_quote,
+)
 from app.config import get_settings
 from app.db import get_db
 from app.identity.deps import get_current_user
@@ -57,12 +62,13 @@ async def create_checkout_session(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ):
-    """Create a new pending order and Stripe Checkout Session."""
+    """Create a new pending order and Paystack/Stripe Checkout Session."""
     order, checkout_url, session_id = await create_checkout_order(
         session=session,
         user_id=user.id,
         market_id=user.market_id,
         req=req,
+        user_email=user.email,
     )
     return CheckoutSessionResponse(
         order_id=order.id,
@@ -129,13 +135,101 @@ async def stripe_webhook(
     return {"status": "success"}
 
 
+@router.post("/webhooks/paystack")
+async def paystack_webhook(
+    request: Request,
+    x_paystack_signature: str | None = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Handle Paystack payment webhooks idempotently with HMAC-SHA512 verification."""
+    payload_bytes = await request.body()
+
+    has_real_secret = bool(
+        settings.PAYSTACK_SECRET_KEY
+        and not settings.PAYSTACK_SECRET_KEY.startswith("sk_test_paystack_placeholder")
+    )
+
+    if has_real_secret:
+        if not x_paystack_signature:
+            raise HTTPException(status_code=400, detail="Missing x-paystack-signature header")
+        computed_sig = hmac.new(
+            settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
+            payload_bytes,
+            hashlib.sha512,
+        ).hexdigest()
+        if not hmac.compare_digest(computed_sig, x_paystack_signature):
+            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        try:
+            data = json.loads(payload_bytes)
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    else:
+        if settings.ENVIRONMENT == "production":
+            raise HTTPException(
+                status_code=500, detail="PAYSTACK_SECRET_KEY must be configured in production."
+            )
+        if x_paystack_signature:
+            computed_sig = hmac.new(
+                settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
+                payload_bytes,
+                hashlib.sha512,
+            ).hexdigest()
+            if not hmac.compare_digest(computed_sig, x_paystack_signature):
+                raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        try:
+            data = json.loads(payload_bytes)
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    event_type = data.get("event")
+    event_data = data.get("data", {})
+
+    if not event_type:
+        raise HTTPException(status_code=400, detail="Missing event metadata")
+
+    event_id = str(
+        data.get("id")
+        or event_data.get("id")
+        or f"paystack_{event_type}_{event_data.get('reference')}"
+    )
+    reference = event_data.get("reference") or (event_data.get("metadata") or {}).get("order_id")
+
+    if not reference:
+        raise HTTPException(status_code=400, detail="Missing transaction reference")
+
+    if event_type == "charge.success":
+        await fulfill_paystack_payment(
+            session=session,
+            event_id=event_id,
+            reference=reference,
+            status="success",
+            gateway_response=event_data.get("gateway_response"),
+            channel=event_data.get("channel"),
+        )
+    elif event_type in ("charge.failed", "charge.cancelled"):
+        await fulfill_paystack_payment(
+            session=session,
+            event_id=event_id,
+            reference=reference,
+            status="failed",
+            gateway_response=event_data.get("gateway_response", "Transaction failed"),
+            channel=event_data.get("channel"),
+        )
+
+    return {"status": "success"}
+
+
 @router.get("/orders/{order_id}", response_model=OrderResponse)
 async def get_order_status(
     order_id: str,
     session: AsyncSession = Depends(get_db),
 ):
     """Retrieve order status and item lines for checkout result polling."""
-    stmt = select(Order).where(Order.id == order_id).options(selectinload(Order.items))
+    stmt = (
+        select(Order)
+        .where(or_(Order.id == order_id, Order.stripe_session_id == order_id))
+        .options(selectinload(Order.items))
+    )
     res = await session.execute(stmt)
     order = res.scalar_one_or_none()
 

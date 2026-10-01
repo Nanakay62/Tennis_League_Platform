@@ -19,7 +19,7 @@ class QuoteResponse(BaseModel):
     discount_cents: int
     final_cost_cents: int
     applied_credit_id: str | None = None
-    currency: str = "EUR"
+    currency: str = "GHS"
 
 
 class CreateCheckoutSessionRequest(BaseModel):

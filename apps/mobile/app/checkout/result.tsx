@@ -9,42 +9,45 @@ import { AppShell, Card, Button, Badge } from "../../src/components";
 export default function CheckoutResultScreen() {
   const { colors } = useThemeColors();
   const router = useRouter();
-  const { session_id, order_id } = useLocalSearchParams<{
-    session_id: string;
-    order_id: string;
+  const { session_id, order_id, reference, trxref } = useLocalSearchParams<{
+    session_id?: string;
+    order_id?: string;
+    reference?: string;
+    trxref?: string;
   }>();
 
+  const lookupId = order_id || reference || trxref || session_id;
   const [loading, setLoading] = useState(true);
   const [orderStatus, setOrderStatus] = useState<string>("paid");
 
   useEffect(() => {
     checkPayment();
-  }, [order_id]);
+  }, [lookupId]);
 
   async function checkPayment() {
-    if (!order_id) {
+    if (!lookupId) {
       setLoading(false);
       return;
     }
 
     try {
-      // In dev mode, trigger mock webhook fulfillment to verify immediate activation
-      await fetch(`${API_BASE_URL}/webhooks/stripe`, {
+      // In dev mode, trigger mock Paystack webhook fulfillment to verify immediate activation
+      await fetch(`${API_BASE_URL}/webhooks/paystack`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: `evt_dev_${session_id || order_id}`,
-          type: "checkout.session.completed",
+          event: "charge.success",
           data: {
-            object: {
-              id: session_id,
-              payment_intent: `pi_dev_${order_id}`,
-            },
+            id: `pstk_evt_dev_${lookupId}`,
+            reference: lookupId,
+            status: "success",
+            channel: "mobile_money",
+            amount: 35000,
           },
         }),
       }).catch(() => {});
 
-      const res = await fetch(`${API_BASE_URL}/orders/${order_id}`);
+      const res = await fetch(`${API_BASE_URL}/orders/${lookupId}`);
       if (res.ok) {
         const data = await res.json();
         setOrderStatus(data.status);
@@ -67,31 +70,49 @@ export default function CheckoutResultScreen() {
     );
   }
 
+  const isCancelled = orderStatus === "cancelled";
+
   return (
-    <AppShell title="CONFIRMATION">
+    <AppShell title={isCancelled ? "PAYMENT CANCELLED" : "CONFIRMATION"}>
       <View style={styles.wrapper}>
         <Card style={styles.confirmationCard} contentStyle={styles.cardContent}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.accentSecondary }]}>
-            <Feather name="check" size={28} color={colors.primary} />
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: isCancelled ? colors.dangerBg : colors.accentSecondary },
+            ]}
+          >
+            <Feather
+              name={isCancelled ? "x-circle" : "check"}
+              size={28}
+              color={isCancelled ? colors.danger : colors.primary}
+            />
           </View>
 
           <Text style={[styles.title, { color: colors.textPrimary }]}>
-            You're Enrolled!
+            {isCancelled ? "Payment Not Completed" : "You're Enrolled!"}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Welcome to Accra Tennis League. Your season enrollment is confirmed.
+            {isCancelled
+              ? "Your payment was cancelled or could not be processed. No charges were made."
+              : "Welcome to Accra Tennis League. Your season enrollment is confirmed."}
           </Text>
 
           <View style={[styles.infoBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Status</Text>
-              <Badge label="Paid & Confirmed" variant="success" icon="check-circle" size="sm" />
+              <Badge
+                label={isCancelled ? "Cancelled" : "Paid & Confirmed"}
+                variant={isCancelled ? "danger" : "success"}
+                icon={isCancelled ? "alert-circle" : "check-circle"}
+                size="sm"
+              />
             </View>
 
             <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Order Reference</Text>
               <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
-                {(order_id || "ORD-TEST").slice(0, 16)}
+                {(lookupId || "ORD-TEST").slice(0, 16)}
               </Text>
             </View>
 
@@ -103,23 +124,37 @@ export default function CheckoutResultScreen() {
             </View>
           </View>
 
-          <View style={styles.noticeRow}>
-            <Feather name="info" size={14} color={colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
-            <Text style={[styles.nextStepsText, { color: colors.textSecondary }]}>
-              What happens next: Division placements and opponent rosters will be published on kickoff day.
-            </Text>
-          </View>
+          {!isCancelled && (
+            <View style={styles.noticeRow}>
+              <Feather name="info" size={14} color={colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
+              <Text style={[styles.nextStepsText, { color: colors.textSecondary }]}>
+                What happens next: Division placements and opponent rosters will be published on kickoff day.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.actionsRow}>
-            <Button
-              variant="primary"
-              size="lg"
-              onPress={() => router.replace("/divisions/div-comp-1")}
-              iconRight="arrow-right"
-              style={{ width: "100%", marginBottom: 10 }}
-            >
-              View Division Standings
-            </Button>
+            {isCancelled ? (
+              <Button
+                variant="primary"
+                size="lg"
+                onPress={() => router.replace("/join")}
+                icon="refresh-cw"
+                style={{ width: "100%", marginBottom: 10 }}
+              >
+                Try Again
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                onPress={() => router.replace("/divisions/div-comp-1")}
+                iconRight="arrow-right"
+                style={{ width: "100%", marginBottom: 10 }}
+              >
+                View Division Standings
+              </Button>
+            )}
 
             <Button
               variant="secondary"
