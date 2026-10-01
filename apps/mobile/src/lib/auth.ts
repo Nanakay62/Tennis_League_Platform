@@ -150,7 +150,7 @@ export async function fetchCurrentUser(): Promise<UserSession | null> {
       role: data.role,
       displayName: data.profile?.display_name || "Player",
       rating: data.profile?.rating || "3.5",
-      homeArea: data.profile?.home_area || "Frankfurt",
+      homeArea: data.profile?.home_area || "Accra",
       isDaytime: data.profile?.is_daytime || false,
       avatarUrl: data.profile?.avatar_url || null,
     };

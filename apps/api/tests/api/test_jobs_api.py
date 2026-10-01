@@ -300,9 +300,9 @@ async def test_nightly_backup_job(client: AsyncClient, db_session: AsyncSession)
 
     market = await get_or_create_default_market(db_session)
 
-    res = await run_nightly_backup(market_id=market.id, market_slug="frankfurt", session=db_session)
+    res = await run_nightly_backup(market_id=market.id, market_slug="accra", session=db_session)
     assert res["status"] == "ok"
-    assert res["filename"].startswith("backup_frankfurt_")
+    assert res["filename"].startswith("backup_accra_")
     assert res["filename"].endswith(".sql.gz.enc")
 
     # Verify AuditLog row

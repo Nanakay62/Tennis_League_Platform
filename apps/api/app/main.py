@@ -139,30 +139,30 @@ class StandingRowResponse(BaseModel):
 
 
 # Mock in-memory state for initial vertical slice
-FRANKFURT_PROGRAMS = [
+ACCRA_PROGRAMS = [
     {
-        "id": "prog-frankfurt-fall-2026",
-        "name": "Frankfurt Fall Season 2026",
+        "id": "prog-accra-fall-2026",
+        "name": "Accra Fall Season 2026",
         "type": "FLEX_SEASON",
         "startDate": "2026-10-01",
         "endDate": "2026-11-20",
         "status": "Open for Enrollment",
-        "priceCents": 3495,
-        "currency": "EUR",
+        "priceCents": 35000,
+        "currency": "GHS",
     }
 ]
 
-FRANKFURT_DIVISIONS = [
+ACCRA_DIVISIONS = [
     {
         "id": "div-comp-1",
-        "programId": "prog-frankfurt-fall-2026",
+        "programId": "prog-accra-fall-2026",
         "name": "Competitive (3.5)",
         "ratingBand": "3.5",
         "playersCount": 6,
     },
     {
         "id": "div-skilled-1",
-        "programId": "prog-frankfurt-fall-2026",
+        "programId": "prog-accra-fall-2026",
         "name": "Skilled (3.0)",
         "ratingBand": "3.0",
         "playersCount": 6,
@@ -173,8 +173,8 @@ FRANKFURT_DIVISIONS = [
 SEED_PLAYERS_RAW = [
     DomainStandingRow(
         player_id="p1",
-        player_name="Lukas Schmidt",
-        home_area="Sachsenhausen",
+        player_name="Kwame Mensah",
+        home_area="Accra",
         is_daytime=True,
         wins=5,
         losses=1,
@@ -185,8 +185,8 @@ SEED_PLAYERS_RAW = [
     ),
     DomainStandingRow(
         player_id="p2",
-        player_name="Maximilian Weber",
-        home_area="Westend",
+        player_name="Kofi Boateng",
+        home_area="Accra",
         is_daytime=False,
         wins=4,
         losses=2,
@@ -197,8 +197,8 @@ SEED_PLAYERS_RAW = [
     ),
     DomainStandingRow(
         player_id="p3",
-        player_name="Felix Fischer",
-        home_area="Nordend",
+        player_name="Nana Osei",
+        home_area="Tema",
         is_daytime=True,
         wins=3,
         losses=3,
@@ -209,8 +209,8 @@ SEED_PLAYERS_RAW = [
     ),
     DomainStandingRow(
         player_id="p4",
-        player_name="Stefan Meyer",
-        home_area="Bornheim",
+        player_name="Yaw Asante",
+        home_area="Tema",
         is_daytime=False,
         wins=2,
         losses=4,
@@ -246,16 +246,16 @@ async def health_check(session: AsyncSession = Depends(get_db)) -> HealthRespons
 @app.get("/programs", response_model=list[ProgramResponse])
 async def list_programs() -> list[dict[str, Any]]:
     """List available league programs in the current market."""
-    return FRANKFURT_PROGRAMS
+    return ACCRA_PROGRAMS
 
 
 @app.get("/programs/{program_id}/divisions", response_model=list[DivisionResponse])
 async def list_program_divisions(program_id: str) -> list[dict[str, Any]]:
     """List divisions belonging to a given program."""
-    divs = [d for d in FRANKFURT_DIVISIONS if d["programId"] == program_id]
+    divs = [d for d in ACCRA_DIVISIONS if d["programId"] == program_id]
     if not divs:
         # Fallback to returning divisions for demo/testing
-        return FRANKFURT_DIVISIONS
+        return ACCRA_DIVISIONS
     return divs
 
 

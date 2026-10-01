@@ -11,20 +11,20 @@ export default function AboutScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function fetchVersion() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/app/version?platform=${Platform.OS}`);
+        if (res.ok) {
+          const data = await res.json();
+          setVersionInfo(data);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
     fetchVersion();
   }, []);
-
-  async function fetchVersion() {
-    try {
-      const res = await fetch(`${API_BASE_URL}/app/version?platform=${Platform.OS}`);
-      if (res.ok) {
-        const data = await res.json();
-        setVersionInfo(data);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <AppShell title="ABOUT" showBack>
@@ -35,7 +35,7 @@ export default function AboutScreen() {
           </View>
 
           <Text style={[styles.appName, { color: colors.textPrimary }]}>
-            Frankfurt Tennis League
+            Accra Tennis League
           </Text>
           <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>
             Version 1.0.0 (Build 2026.1)
@@ -64,27 +64,27 @@ export default function AboutScreen() {
             <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Market</Text>
               <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
-                Frankfurt am Main
+                Accra / Tema, Ghana
               </Text>
             </View>
 
             <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Time Zone</Text>
               <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
-                Europe/Berlin
+                Africa/Accra
               </Text>
             </View>
 
             <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Currency</Text>
               <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
-                EUR (€)
+                GHS (GH₵)
               </Text>
             </View>
           </View>
 
           <Text style={[styles.footerText, { color: colors.textMuted }]}>
-            Designed for Frankfurt flex singles players. Built on FastAPI & Expo.
+            Designed for Accra & Tema flex singles players. Built on FastAPI & Expo.
           </Text>
         </Card>
       </View>

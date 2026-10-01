@@ -423,7 +423,7 @@ async def job_auto_confirm_matches(market_id: str) -> None:
 
 async def run_nightly_backup(
     market_id: str,
-    market_slug: str = "frankfurt",
+    market_slug: str = "accra",
     session: AsyncSession | None = None,
 ) -> dict[str, Any]:
     """Perform nightly encrypted database backup generation and record archive metadata."""

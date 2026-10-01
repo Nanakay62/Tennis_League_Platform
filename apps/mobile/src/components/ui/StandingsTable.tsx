@@ -141,7 +141,7 @@ export function StandingsTable({
                   style={[styles.tdMuted, styles.colArea, { color: colors.textSecondary }]}
                   numberOfLines={1}
                 >
-                  {row.homeArea || (idx === 2 ? "Frankfurt / C3" : "Frankfurt / C4")}
+                  {row.homeArea || (idx === 2 ? "Accra" : "Tema")}
                 </Text>
 
                 <Text
@@ -231,7 +231,7 @@ export function StandingsTable({
                       )}
                     </View>
                     <Text style={[styles.cardHomeArea, { color: colors.textSecondary }]}>
-                      {row.homeArea || "Frankfurt"}
+                      {row.homeArea || "Accra"}
                     </Text>
                   </View>
 

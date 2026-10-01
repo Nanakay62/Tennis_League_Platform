@@ -108,7 +108,7 @@ export default function LatestScoresScreen() {
             Latest Results
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Verified scores across Frankfurt flex divisions
+            Verified scores across Accra flex divisions
           </Text>
         </View>
 

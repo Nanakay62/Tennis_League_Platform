@@ -53,7 +53,7 @@ export default function RegisterScreen() {
           rating,
           home_area: homeArea.trim(),
           is_daytime: isDaytime,
-          market_slug: "frankfurt",
+          market_slug: "accra",
         }),
       });
 
@@ -81,7 +81,7 @@ export default function RegisterScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Join Frankfurt Tennis</Text>
+        <Text style={styles.title}>Join Accra Tennis</Text>
         <Text style={styles.subtitle}>Create your profile and skill rating</Text>
 
         {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
@@ -148,12 +148,12 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Home Frankfurt Area</Text>
+          <Text style={styles.label}>Home Playing Region / Area</Text>
           <TextInput
             style={styles.input}
             value={homeArea}
             onChangeText={setHomeArea}
-            placeholder="e.g. Sachsenhausen, Westend, Bornheim"
+            placeholder="e.g. Accra (Airport, East Legon) or Tema"
           />
         </View>
 

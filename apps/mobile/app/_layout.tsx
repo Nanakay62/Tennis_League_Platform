@@ -71,7 +71,7 @@ export default function RootLayout() {
           <Stack.Screen name="divisions/[divisionId]" options={{ title: "Division" }} />
           <Stack.Screen name="scores/index" options={{ title: "Latest Scores" }} />
           <Stack.Screen name="scores/submit" options={{ title: "Report Score" }} />
-          <Stack.Screen name="courts/index" options={{ title: "Frankfurt Courts" }} />
+          <Stack.Screen name="courts/index" options={{ title: "Accra & Tema Courts" }} />
           <Stack.Screen name="partners/index" options={{ title: "Partner Program" }} />
           <Stack.Screen name="community/poty" options={{ title: "Player of the Year" }} />
         </Stack>

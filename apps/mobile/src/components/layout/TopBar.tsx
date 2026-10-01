@@ -57,7 +57,7 @@ export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
                 <Feather name="circle" size={14} color="#34d399" />
               </View>
               <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>
-                {title || "Frankfurt Tennis"}
+                {title || "Accra Tennis"}
               </Text>
             </TouchableOpacity>
           </Link>

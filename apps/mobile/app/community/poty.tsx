@@ -74,7 +74,7 @@ export default function POTYLeaderboardScreen() {
             style={{ marginRight: 3 }}
           />
           <Text style={[styles.playerMeta, { color: colors.textSecondary }]}>
-            {item.home_area || "Frankfurt"} • {item.matches_played} matches ({item.matches_won}W)
+            {item.home_area || "Accra"} • {item.matches_played} matches ({item.matches_won}W)
           </Text>
         </View>
       </View>
@@ -110,11 +110,11 @@ export default function POTYLeaderboardScreen() {
             <View style={styles.referralHeader}>
               <Feather name="gift" size={16} color={colors.primary} style={{ marginRight: 6 }} />
               <Text style={[styles.refTitle, { color: colors.textPrimary }]}>
-                Invite Friends & Earn €5.00
+                Invite Friends & Earn GH₵ 50.00
               </Text>
             </View>
             <Text style={[styles.refSub, { color: colors.textSecondary }]}>
-              Share code <Text style={[styles.refCode, { color: colors.primary }]}>{referral.referral_code}</Text> — you both get €5 off!
+              Share code <Text style={[styles.refCode, { color: colors.primary }]}>{referral.referral_code}</Text> — you both get GH₵ 50 off!
             </Text>
           </View>
 

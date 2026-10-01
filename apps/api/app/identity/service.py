@@ -22,25 +22,37 @@ from app.identity.security import (
     hash_token,
     verify_password,
 )
-from app.markets.models import Market
+from app.markets.models import Market, Region
 
 settings = get_settings()
 
 
 async def get_or_create_default_market(session: AsyncSession) -> Market:
-    """Ensure the default Frankfurt market exists."""
-    stmt = select(Market).where(Market.slug == "frankfurt")
+    """Ensure the default Accra market and regions exist."""
+    stmt = select(Market).where(Market.slug == "accra")
     res = await session.execute(stmt)
     market = res.scalar_one_or_none()
     if not market:
         market = Market(
-            name="Frankfurt",
-            slug="frankfurt",
-            timezone="Europe/Berlin",
-            currency="EUR",
+            name="Accra",
+            slug="accra",
+            timezone="Africa/Accra",
+            currency="GHS",
         )
         session.add(market)
         await session.flush()
+
+    # Ensure default regions exist
+    reg_stmt = select(Region).where(Region.market_id == market.id)
+    reg_res = await session.execute(reg_stmt)
+    existing_regions = {r.name.lower() for r in reg_res.scalars().all()}
+
+    for reg_name in ["Accra", "Tema"]:
+        if reg_name.lower() not in existing_regions:
+            region = Region(market_id=market.id, name=reg_name)
+            session.add(region)
+    await session.flush()
+
     return market
 
 

@@ -9,7 +9,7 @@ description: Project instructions, non-negotiable rules, architectural boundarie
 Cross-platform flex tennis league platform (web, iOS, Android).
 Backend: Python 3.12+, FastAPI, SQLAlchemy 2 async, Alembic, PostgreSQL, Procrastinate.
 Client: Expo + Expo Router + TypeScript (`apps/mobile`). Admin: SQLAdmin at `/admin`.
-Default Market: Frankfurt (`Europe/Berlin`, `EUR`).
+Default Market: Accra (`Africa/Accra`, `GHS`).
 
 ## Commands
 - **Backend dev**: `cd apps/api && uv run fastapi dev app/main.py`

@@ -39,7 +39,7 @@ export function Sidebar() {
           <Feather name="circle" size={14} color="#34d399" />
         </View>
         <Text style={[styles.brandTitle, { color: colors.sidebarText }]}>
-          Frankfurt Tennis
+          Accra Tennis
         </Text>
       </View>
 
@@ -97,7 +97,7 @@ export function Sidebar() {
           style={{ marginBottom: 8 }}
         />
         <Text style={[styles.footerText, { color: colors.sidebarTextMuted }]}>
-          Better Players.{"\n"}Stronger Community.{"\n"}Frankfurt Tennis.
+          Better Players.{"\n"}Stronger Community.{"\n"}Accra Tennis.
         </Text>
       </View>
     </View>

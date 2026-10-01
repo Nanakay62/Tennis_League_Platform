@@ -14,7 +14,7 @@ async def test_register_user_success(client: AsyncClient):
         "rating": "3.5",
         "home_area": "Sachsenhausen",
         "is_daytime": True,
-        "market_slug": "frankfurt",
+        "market_slug": "accra",
     }
     response = await client.post("/auth/register", json=payload)
     assert response.status_code == 201

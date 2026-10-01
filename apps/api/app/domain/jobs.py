@@ -54,7 +54,7 @@ def format_kickoff_notification(
         f"Hi {player_name}! Your division is live with {opponent_count} players. "
         "Open the app to view your roster and schedule your first match."
     )
-    email_subject = f"Frankfurt Tennis Kickoff: {program_title} - {division_name}"
+    email_subject = f"Accra Tennis Kickoff: {program_title} - {division_name}"
 
     opponent_lines = []
     for opp in opponents:
@@ -66,9 +66,9 @@ def format_kickoff_notification(
 
     roster_text = "\n".join(opponent_lines) if opponent_lines else "No opponents found."
 
-    email_text = f"""Hallo {player_name},
+    email_text = f"""Hello {player_name},
 
-Welcome to the new season of Frankfurt Flex Tennis League!
+Welcome to the new season of Accra Flex Tennis League!
 Your division ({division_name}) is officially underway.
 
 Here is your division roster and contact details:
@@ -80,7 +80,7 @@ Rules Reminder:
 3. Opponents have 48 hours to confirm or dispute the reported score.
 
 Have great matches!
-Frankfurt Flex Tennis League Team
+Accra Flex Tennis League Team
 """
     return {
         "push_title": push_title,
@@ -102,16 +102,16 @@ def format_inactive_nudge(
         "Reach out to an opponent and book a court today!"
     )
     email_subject = f"Friendly Reminder: Book your next flex match in {division_name}"
-    email_text = f"""Hallo {player_name},
+    email_text = f"""Hello {player_name},
 
 We noticed it has been {days_inactive} days since your last match in {division_name}.
 
 Playing regular matches keeps your rhythm sharp and ensures all division matches are completed before the playoff deadline!
 
-Check out your division roster in the app, contact an opponent, and book a Frankfurt court this week.
+Check out your division roster in the app, contact an opponent, and book an Accra court this week.
 
 Best regards,
-Frankfurt Flex Tennis League Team
+Accra Flex Tennis League Team
 """
     return {
         "push_title": push_title,
@@ -132,7 +132,7 @@ def format_auto_confirm_notification(
         f"Match confirmed: {winner_name} def. {loser_name} ({score_summary}). Standings updated!"
     )
     email_subject = f"Match Confirmed: {winner_name} vs {loser_name}"
-    email_text = f"""Hallo,
+    email_text = f"""Hello,
 
 The 48-hour dispute window has closed and the match score has been auto-confirmed:
 
@@ -142,7 +142,7 @@ Score: {score_summary}
 
 Division standings have been updated accordingly.
 
-Frankfurt Flex Tennis League Team
+Accra Flex Tennis League Team
 """
     return {
         "push_title": push_title,

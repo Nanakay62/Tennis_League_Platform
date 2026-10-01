@@ -60,7 +60,7 @@ export default function PartnerProgramScreen() {
               style={{ marginRight: 4 }}
             />
             <Text style={[styles.partnerMeta, { color: colors.textSecondary }]}>
-              {item.home_area || "Frankfurt"}
+              {item.home_area || "Accra"}
             </Text>
             <Badge
               variant="accent"
@@ -117,7 +117,7 @@ export default function PartnerProgramScreen() {
           Practice Partners
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Matched within ±0.5 NTRP in your Frankfurt area.
+          Matched within ±0.5 NTRP in your Accra/Tema area.
         </Text>
       </View>
 
@@ -136,10 +136,10 @@ export default function PartnerProgramScreen() {
         />
         <View style={{ flex: 1 }}>
           <Text style={[styles.promoTitle, { color: colors.textPrimary }]}>
-            Monthly Partner Reward (€5.00 Credit)
+            Monthly Partner Reward (GH₵ 50.00 Credit)
           </Text>
           <Text style={[styles.promoDesc, { color: colors.textSecondary }]}>
-            Play matches with at least 3 distinct partners in a calendar month to receive a €5.00 discount voucher towards your next season!
+            Play matches with at least 3 distinct partners in a calendar month to receive a GH₵ 50.00 discount voucher towards your next season!
           </Text>
         </View>
       </Card>
@@ -184,7 +184,7 @@ export default function PartnerProgramScreen() {
             <EmptyState
               icon="users"
               title="No partners found in this band"
-              message="More players in Frankfurt are joining weekly!"
+              message="More players in Accra & Tema are joining weekly!"
             />
           }
         />

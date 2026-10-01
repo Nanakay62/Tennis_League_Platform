@@ -140,7 +140,7 @@ export default function DivisionDetailScreen() {
             Division Overview
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Frankfurt Fall Season • Division {divisionId || "Competitive"}
+            Accra Fall Season • Division {divisionId || "Competitive"}
           </Text>
         </View>
 
@@ -242,7 +242,7 @@ export default function DivisionDetailScreen() {
                       )}
                     </View>
                     <Text style={[styles.playerSub, { color: colors.textSecondary }]}>
-                      {item.home_area ? item.home_area : "Frankfurt"} • NTRP {item.rating || "3.5"}
+                      {item.home_area ? item.home_area : "Accra"} • NTRP {item.rating || "3.5"}
                     </Text>
                   </View>
 

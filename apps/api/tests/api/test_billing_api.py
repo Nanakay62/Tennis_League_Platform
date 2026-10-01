@@ -6,14 +6,14 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_cart_quote_endpoint(client: AsyncClient):
-    payload = {"program_ids": ["prog-frankfurt-fall-2026"]}
+    payload = {"program_ids": ["prog-accra-fall-2026"]}
     res = await client.post("/cart/quote", json=payload)
     assert res.status_code == 200
     data = res.json()
-    assert data["subtotal_cents"] == 3495
+    assert data["subtotal_cents"] == 35000
     assert data["discount_cents"] == 0
-    assert data["final_cost_cents"] == 3495
-    assert data["currency"] == "EUR"
+    assert data["final_cost_cents"] == 35000
+    assert data["currency"] == "GHS"
     assert len(data["items"]) == 1
 
 
@@ -31,7 +31,7 @@ async def test_create_checkout_session_and_order_status(client: AsyncClient):
 
     # 2. Create checkout session
     checkout_payload = {
-        "program_ids": ["prog-frankfurt-fall-2026"],
+        "program_ids": ["prog-accra-fall-2026"],
         "success_url": "http://localhost:8081/checkout/result?session_id={CHECKOUT_SESSION_ID}",
         "cancel_url": "http://localhost:8081/join",
     }
@@ -49,7 +49,7 @@ async def test_create_checkout_session_and_order_status(client: AsyncClient):
     order_data = order_res.json()
     assert order_data["id"] == order_id
     assert order_data["status"] == "pending_payment"
-    assert order_data["total_cents"] == 3495
+    assert order_data["total_cents"] == 35000
 
 
 @pytest.mark.asyncio
@@ -65,7 +65,7 @@ async def test_stripe_webhook_fulfillment_and_idempotency(client: AsyncClient):
     headers = {"Authorization": f"Bearer {token}"}
 
     checkout_payload = {
-        "program_ids": ["prog-frankfurt-fall-2026"],
+        "program_ids": ["prog-accra-fall-2026"],
         "success_url": "http://localhost:8081/checkout/result?session_id={CHECKOUT_SESSION_ID}",
     }
     session_res = await client.post("/checkout/sessions", json=checkout_payload, headers=headers)

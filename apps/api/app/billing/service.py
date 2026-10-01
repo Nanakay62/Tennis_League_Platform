@@ -52,7 +52,7 @@ async def get_cart_quote(
                 CartItem(
                     program_id=pid,
                     program_type="flex_season",
-                    base_price_cents=3495,  # €34.95
+                    base_price_cents=35000,  # GH₵ 350.00
                 )
             )
 
@@ -75,7 +75,12 @@ async def get_cart_quote(
                 )
             )
 
-    return quote_cart(cart_items, now_utc=now_utc, available_credits=domain_credits)
+    return quote_cart(
+        cart_items,
+        now_utc=now_utc,
+        available_credits=domain_credits,
+        currency=settings.DEFAULT_MARKET_CURRENCY,
+    )
 
 
 async def create_checkout_order(

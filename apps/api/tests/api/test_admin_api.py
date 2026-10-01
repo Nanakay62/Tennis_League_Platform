@@ -25,10 +25,10 @@ from app.matches.models import (
 
 async def _create_test_environment(db_session: AsyncSession) -> tuple[str, str, str, str]:
     market = Market(
-        name="Frankfurt am Main",
-        slug="frankfurt",
-        timezone="Europe/Berlin",
-        currency="EUR",
+        name="Accra",
+        slug="accra",
+        timezone="Africa/Accra",
+        currency="GHS",
         is_active=True,
     )
     db_session.add(market)
@@ -36,13 +36,13 @@ async def _create_test_environment(db_session: AsyncSession) -> tuple[str, str, 
 
     program = Program(
         market_id=market.id,
-        name="Frankfurt Fall 2026",
-        slug="frankfurt-fall-2026",
+        name="Accra Fall 2026",
+        slug="accra-fall-2026",
         program_type=ProgramType.FLEX_SEASON,
         start_date=date(2026, 10, 1),
         end_date=date(2026, 11, 30),
-        price_cents=3495,
-        currency="EUR",
+        price_cents=35000,
+        currency="GHS",
         status=ProgramStatus.OPEN,
     )
     db_session.add(program)

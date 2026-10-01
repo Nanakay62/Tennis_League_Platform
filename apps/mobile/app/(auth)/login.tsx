@@ -63,7 +63,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.title}>Sign In</Text>
-        <Text style={styles.subtitle}>Welcome back to Frankfurt Tennis League</Text>
+        <Text style={styles.subtitle}>Welcome back to Accra Tennis League</Text>
 
         {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 

@@ -10,7 +10,9 @@ def test_settings_development_defaults():
     settings = Settings(ENVIRONMENT="development", DEBUG=False)
     assert settings.ENVIRONMENT == "development"
     assert settings.DEBUG is False
-    assert settings.DEFAULT_MARKET_NAME == "Frankfurt"
+    assert settings.DEFAULT_MARKET_NAME == "Accra"
+    assert settings.DEFAULT_MARKET_TIMEZONE == "Africa/Accra"
+    assert settings.DEFAULT_MARKET_CURRENCY == "GHS"
 
 
 def test_settings_production_requires_debug_false():

@@ -48,7 +48,7 @@ async def list_courts(
     has_hitting_wall: bool | None = Query(None, description="Filter hitting wall"),
     session: AsyncSession = Depends(get_db),
 ):
-    """List tennis courts in the Frankfurt market with amenity filters."""
+    """List tennis courts in the Accra market with amenity filters."""
     default_market = await get_or_create_default_market(session)
     return await get_courts_directory(
         session,

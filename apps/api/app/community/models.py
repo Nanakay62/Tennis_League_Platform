@@ -20,7 +20,7 @@ class Court(Base):
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     address: Mapped[str] = mapped_column(String(255), nullable=False)
     postal_code: Mapped[str] = mapped_column(String(20), nullable=False)
-    city: Mapped[str] = mapped_column(String(50), default="Frankfurt am Main", nullable=False)
+    city: Mapped[str] = mapped_column(String(50), default="Accra", nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     num_courts: Mapped[int] = mapped_column(Integer, default=4, nullable=False)

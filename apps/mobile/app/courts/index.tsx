@@ -149,10 +149,10 @@ export default function CourtsDirectoryScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Frankfurt Courts
+          Accra & Tema Courts
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Find tennis courts, surfaces, and booking details across Frankfurt.
+          Find tennis courts, surfaces, and booking details across Accra and Tema.
         </Text>
       </View>
 
@@ -418,7 +418,7 @@ export default function CourtsDirectoryScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Finding Frankfurt courts...
+            Finding Accra & Tema courts...
           </Text>
         </View>
       ) : isError ? (

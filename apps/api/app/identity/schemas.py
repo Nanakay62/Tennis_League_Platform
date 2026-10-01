@@ -9,9 +9,9 @@ class UserRegisterRequest(BaseModel):
     display_name: str = Field(min_length=2, max_length=100)
     phone: str = Field(default="", max_length=30)
     rating: str = Field(default="3.5")  # e.g. "3.0", "3.5", "4.0"
-    home_area: str = Field(default="Sachsenhausen")
+    home_area: str = Field(default="Accra")
     is_daytime: bool = Field(default=False)
-    market_slug: str = Field(default="frankfurt")
+    market_slug: str = Field(default="accra")
 
 
 class UserLoginRequest(BaseModel):

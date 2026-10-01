@@ -235,7 +235,7 @@ export default function JoinTodayScreen() {
                     Credit / Discount Applied
                   </Text>
                   <Text style={[styles.summaryVal, { color: colors.success }]}>
-                    -€{quote.discount.toFixed(2)}
+                    -GH₵ {quote.discount.toFixed(2)}
                   </Text>
                 </View>
               )}
@@ -243,7 +243,7 @@ export default function JoinTodayScreen() {
               <View style={[styles.totalRow, { borderTopColor: colors.borderSubtle }]}>
                 <Text style={[styles.totalLabel, { color: colors.textPrimary }]}>Final Cost</Text>
                 <Text style={[styles.totalVal, { color: colors.primary }]}>
-                  €{quote.finalCost.toFixed(2)}
+                  GH₵ {quote.finalCost.toFixed(2)}
                 </Text>
               </View>
 
@@ -255,7 +255,7 @@ export default function JoinTodayScreen() {
                 icon="credit-card"
                 style={styles.checkoutBtn}
               >
-                Pay with Stripe • €{quote.finalCost.toFixed(2)}
+                Pay with Stripe • GH₵ {quote.finalCost.toFixed(2)}
               </Button>
             </Card>
           )}

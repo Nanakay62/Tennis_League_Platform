@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False  # Must remain False in production — enables stack trace leakage if True
 
     # Market Defaults
-    DEFAULT_MARKET_NAME: str = "Frankfurt"
-    DEFAULT_MARKET_TIMEZONE: str = "Europe/Berlin"
-    DEFAULT_MARKET_CURRENCY: str = "EUR"
+    DEFAULT_MARKET_NAME: str = "Accra"
+    DEFAULT_MARKET_TIMEZONE: str = "Africa/Accra"
+    DEFAULT_MARKET_CURRENCY: str = "GHS"
 
     # Persistence
     DATABASE_URL: str = "postgresql+psycopg://league:league@localhost:5432/league"
@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     EXPO_PUSH_URL: str = "https://exp.host/--/api/v2/push/send"
     EMAIL_PROVIDER: str = "console"  # console, resend, ses
     RESEND_API_KEY: str = ""
-    EMAIL_FROM: str = "Frankfurt Flex League <noreply@frankfurttennis.de>"
+    EMAIL_FROM: str = "Accra Flex League <noreply@accratennis.com>"
 
     # Logging & Observability
     LOG_LEVEL: str = "INFO"

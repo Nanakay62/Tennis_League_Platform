@@ -336,7 +336,7 @@ async def get_or_create_user_referral_info(
 
     return ReferralInfoResponse(
         referral_code=code,
-        referral_link=f"https://frankfurt-tennis.de/join?ref={code}",
+        referral_link=f"https://accra-tennis.com/join?ref={code}",
         reward_credit_cents=500,
         completed_referrals_count=completed,
         pending_referrals_count=pending,

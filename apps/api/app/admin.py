@@ -289,7 +289,7 @@ def setup_admin(app: FastAPI) -> Admin:
         app,
         engine,
         authentication_backend=admin_auth,
-        title="Frankfurt Tennis League Admin",
+        title="Accra Tennis League Admin",
         base_url="/admin",
     )
 

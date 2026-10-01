@@ -79,7 +79,7 @@ export default function CheckoutResultScreen() {
             You're Enrolled!
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Welcome to Frankfurt Tennis League. Your season enrollment is confirmed.
+            Welcome to Accra Tennis League. Your season enrollment is confirmed.
           </Text>
 
           <View style={[styles.infoBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}>
@@ -98,7 +98,7 @@ export default function CheckoutResultScreen() {
             <View style={[styles.infoRow, { borderTopColor: colors.borderSubtle, borderTopWidth: 1 }]}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Market</Text>
               <Text style={[styles.infoVal, { color: colors.textPrimary }]}>
-                Frankfurt am Main
+                Accra
               </Text>
             </View>
           </View>

@@ -127,7 +127,7 @@ def test_format_inactive_nudge():
     assert "9 days" in payload["push_body"]
     assert "3.0 Women" in payload["email_subject"]
     assert "book a court" in payload["push_body"]
-    assert "Frankfurt court" in payload["email_body"]
+    assert "Accra court" in payload["email_body"]
 
 
 def test_format_auto_confirm_notification():
