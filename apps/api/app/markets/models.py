@@ -15,8 +15,8 @@ class Market(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
-    timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="Europe/Berlin")
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="Africa/Accra")
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GHS")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False

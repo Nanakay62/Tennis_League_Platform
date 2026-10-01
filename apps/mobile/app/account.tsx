@@ -96,7 +96,7 @@ export default function AccountScreen() {
             <Feather name="user" size={32} color={colors.primary} />
           </View>
           <Text style={[styles.guestTitle, { color: colors.textPrimary }]}>
-            Sign In to Frankfurt Tennis
+            Sign In to Accra Tennis
           </Text>
           <Text style={[styles.guestDesc, { color: colors.textSecondary }]}>
             Access your player profile, match reports, communications, and account settings.
@@ -143,7 +143,7 @@ export default function AccountScreen() {
 
               <View style={styles.tagRow}>
                 <Badge label={`NTRP ${user.rating}`} variant="neutral" icon="shield" size="sm" />
-                <Badge label={user.homeArea || "Frankfurt"} variant="neutral" icon="map-pin" size="sm" />
+                <Badge label={user.homeArea || "Accra"} variant="neutral" icon="map-pin" size="sm" />
                 {user.isDaytime && (
                   <Badge label="Daytime (d)" variant="accent" icon="sun" size="sm" />
                 )}

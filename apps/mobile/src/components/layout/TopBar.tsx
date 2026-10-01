@@ -17,7 +17,7 @@ export interface TopBarProps {
  * Top bar carrying strictly notifications and the account menu (Constraint #4).
  * Matches reference image:
  * - Desktop: User profile with name & dropdown chevron, red notification bell dot
- * - Mobile: Frankfurt Tennis brandmark on left, bell & avatar on right
+ * - Mobile: Accra Tennis brandmark on left, bell & avatar on right
  */
 export function TopBar({ showBack = false, onBack, title }: TopBarProps) {
   const { colors } = useThemeColors();

@@ -83,7 +83,7 @@ class Quote:
     discount_cents: int
     final_cost_cents: int
     applied_credit_id: str | None = None
-    currency: str = "EUR"
+    currency: str = "GHS"
 
 
 def calculate_item_price(item: CartItem, now_utc: datetime) -> tuple[int, str]:
@@ -136,7 +136,7 @@ def quote_cart(
     items: list[CartItem],
     now_utc: datetime,
     available_credits: list[Credit] | None = None,
-    currency: str = "EUR",
+    currency: str = "GHS",
 ) -> Quote:
     """Calculate cart quote with pricing tiers and best single discount applied."""
     lines: list[QuoteLine] = []

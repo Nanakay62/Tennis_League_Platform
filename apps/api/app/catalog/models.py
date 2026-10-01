@@ -40,9 +40,9 @@ class Program(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default=ProgramStatus.OPEN, nullable=False)
     price_cents: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=3495
-    )  # e.g. 3495 = €34.95
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+        Integer, nullable=False, default=35000
+    )  # e.g. 35000 = GH₵ 350.00
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GHS")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )

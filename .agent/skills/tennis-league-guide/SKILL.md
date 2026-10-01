@@ -20,11 +20,11 @@ Default Market: Accra (`Africa/Accra`, `GHS`).
 ## Non-negotiable rules
 1. **Pure Domain Layer**: Business rules live in `apps/api/app/domain` as pure functions with zero framework dependencies (no FastAPI, no SQLAlchemy) and thorough unit tests.
 2. **Configurable Policies**: Every rule value comes from settings or the database, never a hardcoded magic number in a route or screen.
-3. **Financials & Times**: Money is stored in integer cents (EUR/USD). Times are stored in UTC; displayed in the market's timezone (`Europe/Berlin`).
+3. **Financials & Times**: Money is stored in integer pesewas/cents (GHS). Times are stored in UTC; displayed in the market's timezone (`Africa/Accra`).
 4. **Market Scoping**: Every query must be scoped by `market_id`. Never return another market's data.
 5. **Opponent Contact Details Gating**: Contact details (phone/email) are only visible to paid, active enrollees in the same division and program.
 6. **Audit Trail**: Every change to results, strikes, division placements, and refunds must write an `AuditLog` row with actor, reason, timestamp, and request ID.
-7. **Stripe Idempotency**: Stripe webhooks must be verified with signature checks and processed idempotently via an event tracking table.
+7. **Payment Webhook Idempotency**: Payment webhooks (Paystack / Stripe) must be verified with signature checks and processed idempotently via an event tracking table.
 8. **Client Type Sync**: Regenerate client types after any API schema change (`npm run api:types`).
 9. **Test Discipline**: Add or update tests for every behavior change. Never delete or weaken existing tests to make them pass.
 10. **Security & Secrets**: Never read `.env` files containing real secrets, never deploy without approval, and never execute destructive database commands without explicit confirmation.

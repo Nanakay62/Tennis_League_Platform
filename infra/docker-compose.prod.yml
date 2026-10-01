@@ -31,14 +31,16 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_in_production_strict_secret}@db:5432/${POSTGRES_DB:-tennis_league_prod}
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: production
-      DEFAULT_MARKET_NAME: "Frankfurt am Main"
-      DEFAULT_MARKET_SLUG: "frankfurt"
-      DEFAULT_MARKET_TIMEZONE: "Europe/Berlin"
-      DEFAULT_MARKET_CURRENCY: "EUR"
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN}
-      CORS_ORIGINS: '["https://${APP_DOMAIN:-api.tennis-league.de}", "https://tennis-league.de"]'
+      DEFAULT_MARKET_NAME: "Accra"
+      DEFAULT_MARKET_SLUG: "accra"
+      DEFAULT_MARKET_TIMEZONE: "Africa/Accra"
+      DEFAULT_MARKET_CURRENCY: "GHS"
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
+      PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
+      CORS_ORIGINS: '["https://${APP_DOMAIN:-api.accratennis.com}", "https://accratennis.com"]'
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
       interval: 10s
@@ -62,8 +64,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_in_production_strict_secret}@db:5432/${POSTGRES_DB:-tennis_league_prod}
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: production
-      DEFAULT_MARKET_TIMEZONE: "Europe/Berlin"
-      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN}
+      DEFAULT_MARKET_TIMEZONE: "Africa/Accra"
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
     networks:
       - tennis_internal
 
@@ -74,7 +76,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      APP_DOMAIN: ${APP_DOMAIN:-api.tennis-league.de}
+      APP_DOMAIN: ${APP_DOMAIN:-api.accratennis.com}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_prod_data:/data

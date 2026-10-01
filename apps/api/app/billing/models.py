@@ -33,7 +33,7 @@ class Order(Base):
     subtotal_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     discount_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), default="EUR", nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="GHS", nullable=False)
     applied_credit_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     stripe_session_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True, index=True

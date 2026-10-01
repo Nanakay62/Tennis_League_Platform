@@ -1,10 +1,10 @@
-# Frankfurt Flex Tennis League Platform
+# Accra & Tema Flex Tennis League Platform
 
 A cross-platform flex tennis league application (Web, iOS, Android) and administrative back office.
 
 - **Stack:** Python 3.12 + FastAPI + SQLAlchemy 2 (async) + PostgreSQL + Procrastinate + SQLAdmin
 - **Client:** Expo (React Native + Expo Router, TypeScript) for web, iOS, and Android from a single codebase
-- **Default Market:** Frankfurt am Main (`Europe/Berlin`, Currency: `EUR` in integer cents)
+- **Default Market:** Accra (`Africa/Accra`, Currency: `GHS` in integer pesewas)
 
 ---
 
@@ -64,6 +64,6 @@ tennis-league/
 
 ## Non-negotiable Rules
 1. All sports league policies live in `apps/api/app/domain` as pure, framework-free functions.
-2. Financials are stored in integer cents (EUR). All dates/times are UTC in the database, displayed in `Europe/Berlin`.
+2. Financials are stored in integer pesewas/cents (GHS). All dates/times are UTC in the database, displayed in `Africa/Accra`.
 3. Strict market scoping: every query is scoped by `market_id`.
 4. Opponent contact information is only visible to active, paid players in the same division.

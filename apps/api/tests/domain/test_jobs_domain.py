@@ -143,10 +143,10 @@ def test_format_auto_confirm_notification():
 
 def test_format_backup_filename():
     ts = datetime(2026, 9, 27, 3, 0, 0, tzinfo=UTC)
-    filename = format_backup_filename("frankfurt", ts)
-    assert filename == "backup_frankfurt_20260927_030000.sql.gz.enc"
+    filename = format_backup_filename("accra", ts)
+    assert filename == "backup_accra_20260927_030000.sql.gz.enc"
 
     # Test sanitization with special chars
-    filename_dirty = format_backup_filename("Frankfurt & Main / Hessen", ts)
-    assert filename_dirty.startswith("backup_frankfurt___main___hessen_")
+    filename_dirty = format_backup_filename("Accra & Tema / Greater Accra", ts)
+    assert filename_dirty.startswith("backup_accra___tema___greater_accra_")
     assert filename_dirty.endswith(".sql.gz.enc")

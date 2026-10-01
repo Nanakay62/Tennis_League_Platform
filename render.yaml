@@ -12,11 +12,15 @@ services:
       - key: DEBUG
         value: "false"
       - key: DEFAULT_MARKET_NAME
-        value: Frankfurt
+        value: Accra
       - key: DEFAULT_MARKET_TIMEZONE
-        value: Europe/Berlin
+        value: Africa/Accra
       - key: DEFAULT_MARKET_CURRENCY
-        value: EUR
+        value: GHS
+      - key: PAYSTACK_SECRET_KEY
+        value: sk_test_paystack_placeholder
+      - key: PAYSTACK_PUBLIC_KEY
+        value: pk_test_paystack_placeholder
       - key: STRIPE_SECRET_KEY
         value: sk_test_placeholder
       - key: STRIPE_WEBHOOK_SECRET

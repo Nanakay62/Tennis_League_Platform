@@ -1,12 +1,11 @@
-# Caddy 2 Production Reverse Proxy Configuration
-# Tennis League Platform — Frankfurt Market
+# Tennis League Platform — Accra & Tema Markets
 
 {
-    email admin@tennis-league.de
+    email admin@accratennis.com
     admin off
 }
 
-{$APP_DOMAIN:api.tennis-league.de} {
+{$APP_DOMAIN:api.accratennis.com} {
     encode zstd gzip
 
     # Production Security Headers

@@ -89,7 +89,7 @@ def evaluate_monthly_partner_reward(
     """Determine if a player qualifies for the free month reward credit.
 
     Handbook rule: Players who complete matches with 3+ distinct partners in a month
-    receive a credit voucher towards their next season (e.g. 500 cents = €5.00 discount).
+    receive a credit voucher towards their next season (e.g. 500 pesewas = GH₵ 5.00 discount).
     """
     qualifies = distinct_partners_played >= reward_threshold
     credit_cents = 500 if qualifies else 0

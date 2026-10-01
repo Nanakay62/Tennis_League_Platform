@@ -122,7 +122,7 @@ export default function HomeScreen() {
             style={{ marginRight: 4 }}
           />
           <Text style={[styles.marketText, { color: colors.textSecondary }]}>
-            Frankfurt, Germany
+            Accra, Ghana
           </Text>
           <Feather
             name="sun"
@@ -131,7 +131,7 @@ export default function HomeScreen() {
             style={{ marginLeft: 8, marginRight: 4 }}
           />
           <Text style={[styles.marketText, { color: colors.textSecondary }]}>
-            18°C
+            29°C
           </Text>
         </View>
       </View>
@@ -474,7 +474,7 @@ export default function HomeScreen() {
             <ListRow
               icon="users"
               title="Find a Practice Partner"
-              subtitle="Players near Frankfurt • 3.5"
+              subtitle="Players near Accra / Tema • 3.5"
               href="/partners"
             />
             <ListRow

@@ -83,7 +83,7 @@ export default function ProgramsScreen() {
                 icon="calendar"
               />
               <Text style={[styles.priceTag, { color: colors.primary }]}>
-                {item.currency === "EUR" ? "€" : "GH₵ "}{(item.priceCents / 100).toFixed(2)}
+                GH₵ {(item.priceCents / 100).toFixed(2)}
               </Text>
             </View>
 
