@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,10 @@ import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../src/theme/colors";
 import {
   submitMatch,
+  checkHandicapEligibility,
   SubmitMatchPayload,
   SetScoreInput,
+  HandicapCheckResponse,
 } from "../../src/api/client";
 import { AppShell, Card, Button, Badge } from "../../src/components";
 
@@ -26,11 +28,56 @@ export default function SubmitScoreScreen() {
   const { colors } = useThemeColors();
   const params = useLocalSearchParams<{ divisionId?: string; opponentId?: string }>();
 
-  const [divisionId, setDivisionId] = useState(params.divisionId || "div-comp-1");
+  const [divisionId, setDivisionId] = useState(params.divisionId || "div-accra-comp-1");
   const [opponentId, setOpponentId] = useState(params.opponentId || "");
   const [iAmWinner, setIAmWinner] = useState(true);
   const [format, setFormat] = useState<MatchFormat>("best_of_three");
   const [outcomeType, setOutcomeType] = useState<OutcomeType>("played");
+
+  // Handicap state
+  const [isHandicap, setIsHandicap] = useState(false);
+  const [handicapInfo, setHandicapInfo] = useState<HandicapCheckResponse | null>(null);
+  const [checkingHandicap, setCheckingHandicap] = useState(false);
+  const [handicapCheckError, setHandicapCheckError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      if (!opponentId.trim()) {
+        if (active) {
+          setHandicapInfo(null);
+          setIsHandicap(false);
+          setHandicapCheckError(null);
+        }
+        return;
+      }
+
+      setCheckingHandicap(true);
+      setHandicapCheckError(null);
+      try {
+        const info = await checkHandicapEligibility(opponentId.trim());
+        if (active) {
+          setHandicapInfo(info);
+          if (!info.eligible) {
+            setIsHandicap(false);
+          }
+        }
+      } catch (err: any) {
+        if (active) {
+          setHandicapCheckError(err.message || "Could not verify handicap eligibility");
+          setHandicapInfo(null);
+          setIsHandicap(false);
+        }
+      } finally {
+        if (active) setCheckingHandicap(false);
+      }
+    }, 400);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [opponentId]);
 
   // Sets state
   const [set1Winner, setSet1Winner] = useState(6);
@@ -87,6 +134,7 @@ export default function SubmitScoreScreen() {
       sets,
       minutes_waited: outcomeType === "no_show" ? minutesWaited : undefined,
       retirement_notes: outcomeType === "retired" ? retirementNotes : undefined,
+      is_handicap: isHandicap,
     };
 
     setLoading(true);
@@ -169,7 +217,7 @@ export default function SubmitScoreScreen() {
           ]}
           value={divisionId}
           onChangeText={setDivisionId}
-          placeholder="e.g. div-comp-1"
+          placeholder="e.g. div-accra-comp-1"
           placeholderTextColor={colors.textMuted}
         />
 
@@ -253,6 +301,115 @@ export default function SubmitScoreScreen() {
           ))}
         </View>
       </Card>
+
+      {/* Handicap Scoring Card */}
+      {outcomeType === "played" && (
+        <Card title="Handicap Scoring (Optional)">
+          <Text style={[styles.hintText, { color: colors.textSecondary, marginBottom: 12 }]}>
+            Leveling system for unequal skill ratings (requires verified rating with &ge; 6 confirmed matches and gap &gt; 0.5).
+          </Text>
+
+          {!opponentId.trim() ? (
+            <View style={[styles.handicapBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+              <Feather name="info" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+              <Text style={[styles.handicapBoxText, { color: colors.textSecondary }]}>
+                Enter an Opponent Player ID above to check Handicap Scoring qualification.
+              </Text>
+            </View>
+          ) : checkingHandicap ? (
+            <View style={[styles.handicapBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.handicapBoxText, { color: colors.textSecondary }]}>
+                Checking rating gap and platform match verification...
+              </Text>
+            </View>
+          ) : handicapInfo ? (
+            handicapInfo.eligible ? (
+              <View>
+                <View style={styles.handicapToggleRow}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={[styles.handicapToggleTitle, { color: colors.textPrimary }]}>
+                      Apply Handicap Scoring
+                    </Text>
+                    <Text style={[styles.handicapToggleSub, { color: colors.textSecondary }]}>
+                      Rating gap {handicapInfo.rating_gap} • {handicapInfo.lead} lead
+                    </Text>
+                  </View>
+                  <Button
+                    variant={isHandicap ? "primary" : "secondary"}
+                    size="sm"
+                    onPress={() => setIsHandicap(!isHandicap)}
+                  >
+                    {isHandicap ? "Enabled" : "Enable"}
+                  </Button>
+                </View>
+
+                {isHandicap && (
+                  <View
+                    style={[
+                      styles.handicapDetailBox,
+                      { backgroundColor: colors.accentSecondary, borderColor: colors.primary },
+                    ]}
+                  >
+                    <View style={styles.handicapRuleRow}>
+                      <Badge variant="accent" size="sm" label={`Head Start: ${handicapInfo.lead}`} />
+                      <Badge variant="neutral" size="sm" label={handicapInfo.court || "Ad court"} />
+                    </View>
+                    <Text style={[styles.handicapDescText, { color: colors.textPrimary, marginTop: 8 }]}>
+                      • Head Start: {handicapInfo.lower_rated_player_name || "Lower-rated player"} begins each game leading {handicapInfo.lead}.
+                    </Text>
+                    <Text style={[styles.handicapDescText, { color: colors.textPrimary }]}>
+                      • Serving Court: Server begins each game serving to the {handicapInfo.court || "Ad court"}.
+                    </Text>
+                    <Text style={[styles.handicapDescText, { color: colors.textPrimary }]}>
+                      • Tiebreak Rule: Standard 7-point tiebreak at 6-6 (starts 0-0).
+                    </Text>
+                    <Text style={[styles.handicapDescText, { color: colors.textSecondary, marginTop: 4, fontStyle: "italic" }]}>
+                      • Matches count identically to regular matches in league standings.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.handicapBox,
+                  { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
+                ]}
+              >
+                <Feather name="alert-circle" size={16} color={colors.warning} style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.handicapBoxText, { color: colors.textPrimary, fontWeight: "600" }]}>
+                    Not Qualified for Handicap Scoring
+                  </Text>
+                  <Text style={[styles.handicapBoxText, { color: colors.textSecondary, marginTop: 4 }]}>
+                    {handicapInfo.reason}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                    <Badge
+                      variant="neutral"
+                      size="sm"
+                      label={`Your verified matches: ${handicapInfo.my_match_count || 0} / ${handicapInfo.min_qualifying_matches}`}
+                    />
+                    <Badge
+                      variant="neutral"
+                      size="sm"
+                      label={`Opponent matches: ${handicapInfo.opponent_match_count || 0} / ${handicapInfo.min_qualifying_matches}`}
+                    />
+                  </View>
+                </View>
+              </View>
+            )
+          ) : handicapCheckError ? (
+            <View style={[styles.handicapBox, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+              <Feather name="info" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+              <Text style={[styles.handicapBoxText, { color: colors.textSecondary }]}>
+                {handicapCheckError}
+              </Text>
+            </View>
+          ) : null}
+        </Card>
+      )}
 
       {/* Set Scores Card */}
       {(outcomeType === "played" || outcomeType === "retired") && (
@@ -479,5 +636,46 @@ const styles = StyleSheet.create({
   actionsContainer: {
     marginTop: 8,
     marginBottom: 32,
+  },
+  handicapBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  handicapBoxText: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  handicapToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  handicapToggleTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  handicapToggleSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  handicapDetailBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  handicapRuleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 6,
+  },
+  handicapDescText: {
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

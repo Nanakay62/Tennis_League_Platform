@@ -13,7 +13,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { name: "Home", href: "/", icon: "home", exact: true },
-  { name: "My League", href: "/divisions/div-comp-1", icon: "shield" },
+  { name: "My League", href: "/divisions/div-accra-comp-1", icon: "shield" },
   { name: "Scores", href: "/scores", icon: "clipboard" },
   { name: "Courts", href: "/courts", icon: "map-pin" },
   { name: "Community", href: "/community/poty", icon: "users" },

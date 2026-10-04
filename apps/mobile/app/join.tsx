@@ -30,47 +30,57 @@ export default function JoinTodayScreen() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    let active = true;
+    async function loadPrograms() {
+      setLoading(true);
+      try {
+        const data = await getPrograms();
+        if (active) {
+          setPrograms(data);
+          if (data.length > 0) {
+            setSelectedIds([data[0].id]);
+          }
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
     loadPrograms();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (selectedIds.length > 0) {
-      fetchQuote();
-    } else {
-      setQuote(null);
+    let active = true;
+    if (selectedIds.length === 0) {
+      return;
     }
-  }, [selectedIds]);
 
-  async function loadPrograms() {
-    setLoading(true);
-    try {
-      const data = await getPrograms();
-      setPrograms(data);
-      if (data.length > 0) {
-        setSelectedIds([data[0].id]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchQuote() {
-    try {
-      const res = await fetch(`${API_BASE_URL}/cart/quote`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ program_ids: selectedIds }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setQuote({
-          subtotal: data.subtotal_cents / 100,
-          discount: data.discount_cents / 100,
-          finalCost: data.final_cost_cents / 100,
+    async function fetchQuote() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ program_ids: selectedIds }),
         });
-      }
-    } catch {}
-  }
+        if (res.ok && active) {
+          const data = await res.json();
+          setQuote({
+            subtotal: data.subtotal_cents / 100,
+            discount: data.discount_cents / 100,
+            finalCost: data.final_cost_cents / 100,
+          });
+        }
+      } catch {}
+    }
+
+    fetchQuote();
+    return () => {
+      active = false;
+    };
+  }, [selectedIds]);
 
   function toggleProgram(id: string) {
     if (selectedIds.includes(id)) {
@@ -220,7 +230,7 @@ export default function JoinTodayScreen() {
           })}
 
           {/* Order Summary & Checkout Card */}
-          {quote && (
+          {quote && selectedIds.length > 0 && (
             <Card title="Order Summary" style={styles.summaryCard}>
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Subtotal</Text>

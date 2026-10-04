@@ -51,8 +51,8 @@ export default function HomeScreen() {
       setLoading(true);
       try {
         const [rosterRes, standingsData, scoresData] = await Promise.all([
-          getDivisionRoster("div-comp-1"),
-          getDivisionStandings("div-comp-1"),
+          getDivisionRoster("div-accra-comp-1"),
+          getDivisionStandings("div-accra-comp-1"),
           getLatestScoresFeed(),
         ]);
 
@@ -76,7 +76,7 @@ export default function HomeScreen() {
     roster[0] ||
     null;
 
-  const opponentName = opponent ? opponent.display_name : "Lukas Schmidt";
+  const opponentName = opponent ? opponent.display_name : "Kwame Mensah";
   const userName = user?.displayName || "Player";
   const userAvatarUrl = user?.avatarUrl;
 
@@ -287,7 +287,7 @@ export default function HomeScreen() {
             <Button
               variant="primary"
               size="md"
-              href="/divisions/div-comp-1"
+              href="/divisions/div-accra-comp-1"
               icon="check-circle"
               style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
             >
@@ -369,7 +369,7 @@ export default function HomeScreen() {
           {/* Standings Preview */}
           <Card
             title="Standings"
-            actionLink={{ label: "View All →", href: "/divisions/div-comp-1" }}
+            actionLink={{ label: "View All →", href: "/divisions/div-accra-comp-1" }}
             noPadding
           >
             <StandingsTable
@@ -377,7 +377,7 @@ export default function HomeScreen() {
               currentUserPlayerId={user?.id}
               mode="auto"
               loading={loading}
-              divisionId="div-comp-1"
+              divisionId="div-accra-comp-1"
               showLegend={false}
             />
           </Card>

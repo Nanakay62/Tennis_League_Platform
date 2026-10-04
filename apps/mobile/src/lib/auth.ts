@@ -16,6 +16,11 @@ export interface UserSession {
   homeArea: string;
   isDaytime: boolean;
   avatarUrl?: string | null;
+  gender?: string;
+  birthYear?: number | null;
+  favoriteLink?: string | null;
+  gameDescription?: string | null;
+  aboutMe?: string | null;
 }
 
 export function getCachedUserSession(): UserSession | null {
@@ -153,6 +158,11 @@ export async function fetchCurrentUser(): Promise<UserSession | null> {
       homeArea: data.profile?.home_area || "Accra",
       isDaytime: data.profile?.is_daytime || false,
       avatarUrl: data.profile?.avatar_url || null,
+      gender: data.profile?.gender || "unspecified",
+      birthYear: data.profile?.birth_year ?? null,
+      favoriteLink: data.profile?.favorite_link || null,
+      gameDescription: data.profile?.game_description || null,
+      aboutMe: data.profile?.about_me || null,
     };
 
     saveCachedUserSession(session);

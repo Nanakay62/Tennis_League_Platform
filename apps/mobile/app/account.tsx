@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, Alert, TextInput, TouchableOpacity, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ import {
   UserSession,
   saveCachedUserSession,
 } from "../src/lib/auth";
-import { API_BASE_URL } from "../src/api/client";
+import { API_BASE_URL, updatePlayerProfile } from "../src/api/client";
 import { pickAndUploadAvatar } from "../src/api/avatar";
 import { AppShell, Card, ListRow, Button, Badge, Avatar } from "../src/components";
 
@@ -21,6 +21,71 @@ export default function AccountScreen() {
   const queryClient = useQueryClient();
   const { data: user, isLoading: loading } = useCurrentUser();
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editHomeArea, setEditHomeArea] = useState("Accra");
+  const [editGender, setEditGender] = useState("unspecified");
+  const [editBirthYear, setEditBirthYear] = useState("");
+  const [editFavoriteLink, setEditFavoriteLink] = useState("");
+  const [editGameDescription, setEditGameDescription] = useState("");
+  const [editAboutMe, setEditAboutMe] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      setEditHomeArea(user.homeArea || "Accra");
+      setEditGender(user.gender || "unspecified");
+      setEditBirthYear(user.birthYear ? String(user.birthYear) : "");
+      setEditFavoriteLink(user.favoriteLink || "");
+      setEditGameDescription(user.gameDescription || "");
+      setEditAboutMe(user.aboutMe || "");
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [user]);
+
+  async function handleSaveProfile() {
+    try {
+      setIsSavingProfile(true);
+      const parsedYear = editBirthYear.trim() ? parseInt(editBirthYear.trim(), 10) : null;
+      const trimmedLink = editFavoriteLink.trim();
+
+      if (trimmedLink && !trimmedLink.startsWith("http://") && !trimmedLink.startsWith("https://")) {
+        Alert.alert("Invalid URL", "Favorite link must begin with http:// or https://");
+        setIsSavingProfile(false);
+        return;
+      }
+
+      await updatePlayerProfile({
+        home_area: editHomeArea,
+        gender: editGender,
+        birth_year: parsedYear,
+        favorite_link: trimmedLink || null,
+        game_description: editGameDescription.trim() || null,
+        about_me: editAboutMe.trim() || null,
+      });
+
+      if (user) {
+        const updatedSession = {
+          ...user,
+          homeArea: editHomeArea,
+          gender: editGender,
+          birthYear: parsedYear,
+          favoriteLink: trimmedLink || null,
+          gameDescription: editGameDescription.trim() || null,
+          aboutMe: editAboutMe.trim() || null,
+        };
+        saveCachedUserSession(updatedSession);
+        queryClient.setQueryData(["currentUser"], updatedSession);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      setIsEditingProfile(false);
+      Alert.alert("Success", "Profile details updated successfully.");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to update profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
 
   async function handlePickAvatar() {
     try {
@@ -147,9 +212,252 @@ export default function AccountScreen() {
                 {user.isDaytime && (
                   <Badge label="Daytime (d)" variant="accent" icon="sun" size="sm" />
                 )}
+                {user.gender && user.gender !== "unspecified" && (
+                  <Badge
+                    label={user.gender === "male" ? "Men's" : user.gender === "female" ? "Women's" : "Non-binary"}
+                    variant="neutral"
+                    icon="user"
+                    size="sm"
+                  />
+                )}
+                {Boolean(user.birthYear) && (
+                  <Badge label={`Born ${user.birthYear}`} variant="neutral" icon="calendar" size="sm" />
+                )}
               </View>
+
+              {Boolean(user.gameDescription) && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textSecondary, textTransform: "uppercase" }}>
+                    Playing Style & Tactics
+                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.textPrimary, marginTop: 2, lineHeight: 18 }}>
+                    {user.gameDescription}
+                  </Text>
+                </View>
+              )}
+
+              {Boolean(user.aboutMe) && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textSecondary, textTransform: "uppercase" }}>
+                    About Me
+                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.textPrimary, marginTop: 2, lineHeight: 18 }}>
+                    {user.aboutMe}
+                  </Text>
+                </View>
+              )}
+
+              {Boolean(user.favoriteLink) && (
+                <TouchableOpacity
+                  style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}
+                  onPress={() => Linking.openURL(user.favoriteLink!)}
+                >
+                  <Feather name="external-link" size={13} color={colors.primary} style={{ marginRight: 5 }} />
+                  <Text style={{ fontSize: 12, color: colors.primary, textDecorationLine: "underline" }} numberOfLines={1}>
+                    {user.favoriteLink}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                onPress={() => setIsEditingProfile(!isEditingProfile)}
+                style={{ marginTop: 10, alignSelf: "flex-start" }}
+              >
+                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>
+                  {isEditingProfile ? "Close Profile Edit" : "Edit Profile Info"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </Card>
+
+          {isEditingProfile && (
+            <Card title="Player Profile Details">
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Home Playing Region / Area
+              </Text>
+              <View style={styles.genderRow}>
+                {["Accra", "Tema"].map((area) => (
+                  <TouchableOpacity
+                    key={area}
+                    style={[
+                      styles.genderBtn,
+                      { borderColor: colors.border, backgroundColor: colors.surfaceMuted },
+                      editHomeArea === area && {
+                        borderColor: colors.primary,
+                        backgroundColor: colors.accentSecondary,
+                      },
+                    ]}
+                    onPress={() => setEditHomeArea(area)}
+                  >
+                    <Text
+                      style={[
+                        styles.genderBtnText,
+                        { color: colors.textSecondary },
+                        editHomeArea === area && { color: colors.primary, fontWeight: "700" },
+                      ]}
+                    >
+                      {area}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 14 }]}>
+                Gender (for division qualification)
+              </Text>
+              <View style={styles.genderRow}>
+                {[
+                  { id: "male", label: "Male" },
+                  { id: "female", label: "Female" },
+                  { id: "non_binary", label: "Non-binary" },
+                  { id: "unspecified", label: "Prefer not to say" },
+                ].map((g) => (
+                  <TouchableOpacity
+                    key={g.id}
+                    style={[
+                      styles.genderBtn,
+                      { borderColor: colors.border, backgroundColor: colors.surfaceMuted },
+                      editGender === g.id && {
+                        borderColor: colors.primary,
+                        backgroundColor: colors.accentSecondary,
+                      },
+                    ]}
+                    onPress={() => setEditGender(g.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.genderBtnText,
+                        { color: colors.textSecondary },
+                        editGender === g.id && { color: colors.primary, fontWeight: "700" },
+                      ]}
+                    >
+                      {g.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 14 }]}>
+                Birth Year (required for 40+ senior divisions)
+              </Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceMuted,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                value={editBirthYear}
+                onChangeText={setEditBirthYear}
+                placeholder="e.g. 1984"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  Playing Style & Tactics (optional)
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                  {editGameDescription.length}/500
+                </Text>
+              </View>
+              <TextInput
+                style={[
+                  styles.textArea,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceMuted,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                value={editGameDescription}
+                onChangeText={setEditGameDescription}
+                placeholder="e.g. Aggressive baseliner, heavy topspin forehand, slice backhand"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                maxLength={500}
+              />
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  About Me (optional)
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                  {editAboutMe.length}/1000
+                </Text>
+              </View>
+              <TextInput
+                style={[
+                  styles.textArea,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceMuted,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                value={editAboutMe}
+                onChangeText={setEditAboutMe}
+                placeholder="e.g. Weekday morning or weekend player looking for competitive matches."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={4}
+                maxLength={1000}
+              />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 14 }]}>
+                Favorite Link (optional)
+              </Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceMuted,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                value={editFavoriteLink}
+                onChangeText={setEditFavoriteLink}
+                placeholder="https://..."
+                placeholderTextColor={colors.textMuted}
+                keyboardType="url"
+                autoCapitalize="none"
+                maxLength={512}
+              />
+              {Boolean(editFavoriteLink.trim()) &&
+                !editFavoriteLink.trim().startsWith("http://") &&
+                !editFavoriteLink.trim().startsWith("https://") && (
+                  <Text style={{ fontSize: 11, color: colors.danger, marginTop: -8, marginBottom: 10 }}>
+                    Link must begin with http:// or https://
+                  </Text>
+                )}
+
+              <View style={styles.editBtnRow}>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onPress={handleSaveProfile}
+                  loading={isSavingProfile}
+                  style={{ flex: 1 }}
+                >
+                  Save Profile
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={() => setIsEditingProfile(false)}
+                  disabled={isSavingProfile}
+                >
+                  Cancel
+                </Button>
+              </View>
+            </Card>
+          )}
 
           {/* Settings List Card */}
           <Card title="Account Settings" noPadding>
@@ -283,6 +591,50 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  genderRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4,
+  },
+  genderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  genderBtnText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  textInput: {
+    height: 42,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  textArea: {
+    minHeight: 70,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    marginBottom: 12,
+    textAlignVertical: "top",
+  },
+  editBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
   },
   logoutBtn: {
     marginTop: 8,

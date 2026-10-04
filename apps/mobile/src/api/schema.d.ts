@@ -109,6 +109,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/identity/avatar/upload-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get Avatar Upload Url
+         * @description Generate a presigned Cloudflare R2 upload URL with signed policies, or local sandbox fallback.
+         */
+        post: operations["get_avatar_upload_url_identity_avatar_upload_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/avatar/upload-sandbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Avatar Sandbox
+         * @description Local development/testing sandbox upload endpoint when R2 credentials are not set.
+         */
+        post: operations["upload_avatar_sandbox_identity_avatar_upload_sandbox_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Profile
+         * @description Update profile information.
+         */
+        patch: operations["update_profile_identity_profile_patch"];
+        trace?: never;
+    };
     "/me/profile": {
         parameters: {
             query?: never;
@@ -204,7 +264,7 @@ export interface paths {
         put?: never;
         /**
          * Create Checkout Session
-         * @description Create a new pending order and Stripe Checkout Session.
+         * @description Create a new pending order and Paystack/Stripe Checkout Session.
          */
         post: operations["create_checkout_session_checkout_sessions_post"];
         delete?: never;
@@ -224,9 +284,29 @@ export interface paths {
         put?: never;
         /**
          * Stripe Webhook
-         * @description Handle Stripe payment webhooks idempotently.
+         * @description Handle Stripe payment webhooks idempotently with strict signature verification.
          */
         post: operations["stripe_webhook_webhooks_stripe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/paystack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paystack Webhook
+         * @description Handle Paystack payment webhooks idempotently with HMAC-SHA512 verification.
+         */
+        post: operations["paystack_webhook_webhooks_paystack_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -245,6 +325,86 @@ export interface paths {
          * @description Retrieve order status and item lines for checkout result polling.
          */
         get: operations["get_order_status_orders__order_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/programs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Programs
+         * @description List available league programs in the database for the given or default market.
+         */
+        get: operations["list_programs_programs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/programs/{program_id}/divisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Program Divisions
+         * @description List divisions belonging to a given program, with real enrolled player counts.
+         */
+        get: operations["list_program_divisions_programs__program_id__divisions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/divisions/{division_id}/standings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Division Standings
+         * @description Retrieve computed standings for a division directly from the database.
+         */
+        get: operations["get_division_standings_divisions__division_id__standings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/matches/handicap-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Handicap Eligibility Route
+         * @description Check handicap eligibility and compute headstart between current user and opponent.
+         */
+        get: operations["check_handicap_eligibility_route_matches_handicap_check_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -364,7 +524,7 @@ export interface paths {
         put?: never;
         /**
          * Generate Playoffs
-         * @description Generate the single-elimination championship playoff draw for a division.
+         * @description Generate the single-elimination championship playoff draw for a division (admin-only).
          */
         post: operations["generate_playoffs_divisions__division_id__playoffs_generate_post"];
         delete?: never;
@@ -404,7 +564,7 @@ export interface paths {
         put?: never;
         /**
          * Report Score
-         * @description Report a playoff match score and advance the winner to the next round.
+         * @description Report a playoff match score and advance the winner to the next round (admin-only).
          */
         post: operations["report_score_playoffs_matches__match_id__score_post"];
         delete?: never;
@@ -442,7 +602,7 @@ export interface paths {
         };
         /**
          * List Courts
-         * @description List tennis courts in the Frankfurt market with amenity filters.
+         * @description List tennis courts in the Accra market with amenity filters.
          */
         get: operations["list_courts_courts_get"];
         put?: never;
@@ -771,69 +931,9 @@ export interface paths {
         };
         /**
          * Health Check
-         * @description Service liveness and market status check.
+         * @description Service liveness, database connectivity, and market status check.
          */
         get: operations["health_check_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/programs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Programs
-         * @description List available league programs in the current market.
-         */
-        get: operations["list_programs_programs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/programs/{program_id}/divisions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Program Divisions
-         * @description List divisions belonging to a given program.
-         */
-        get: operations["list_program_divisions_programs__program_id__divisions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/divisions/{division_id}/standings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Division Standings
-         * @description Retrieve computed standings for a division, sorted by domain rules.
-         */
-        get: operations["get_division_standings_divisions__division_id__standings_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -867,6 +967,29 @@ export interface components {
             is_update_required: boolean;
             /** Update Url */
             update_url?: string | null;
+        };
+        /** AvatarUploadRequest */
+        AvatarUploadRequest: {
+            /** Content Type */
+            content_type: string;
+            /** File Size Bytes */
+            file_size_bytes: number;
+        };
+        /** AvatarUploadResponse */
+        AvatarUploadResponse: {
+            /** Upload Url */
+            upload_url: string;
+            /** Public Url */
+            public_url: string;
+            /** Fields */
+            fields?: {
+                [key: string]: string;
+            };
+            /**
+             * Method
+             * @default POST
+             */
+            method: string;
         };
         /** BulkPlacementRequest */
         BulkPlacementRequest: {
@@ -1075,14 +1198,16 @@ export interface components {
             ratingBand: string;
             /** Playerscount */
             playersCount: number;
+            /**
+             * Genderconstraint
+             * @default open
+             */
+            genderConstraint: string;
+            /** Minage */
+            minAge?: number | null;
         };
         /** GeneratePlayoffsRequest */
         GeneratePlayoffsRequest: {
-            /**
-             * Min Wins
-             * @default 5
-             */
-            min_wins: number;
             /**
              * Enable Veteran Seeding
              * @default true
@@ -1094,6 +1219,41 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HandicapCheckResponse */
+        HandicapCheckResponse: {
+            /** Eligible */
+            eligible: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** Lead */
+            lead?: string | null;
+            /** Court */
+            court?: string | null;
+            /** Lower Rated Player Id */
+            lower_rated_player_id?: string | null;
+            /** Lower Rated Player Name */
+            lower_rated_player_name?: string | null;
+            /**
+             * Rating Gap
+             * @default 0
+             */
+            rating_gap: number;
+            /**
+             * My Match Count
+             * @default 0
+             */
+            my_match_count: number;
+            /**
+             * Opponent Match Count
+             * @default 0
+             */
+            opponent_match_count: number;
+            /**
+             * Min Qualifying Matches
+             * @default 6
+             */
+            min_qualifying_matches: number;
+        };
         /** HealthResponse */
         HealthResponse: {
             /** Status */
@@ -1104,6 +1264,11 @@ export interface components {
             market: string;
             /** Timezone */
             timezone: string;
+            /**
+             * Database
+             * @default ok
+             */
+            database: string;
         };
         /** LatestScoreFeedItem */
         LatestScoreFeedItem: {
@@ -1119,6 +1284,13 @@ export interface components {
             division_name: string;
             /** Date Str */
             date_str: string;
+            /**
+             * Is Handicap
+             * @default false
+             */
+            is_handicap: boolean;
+            /** Handicap Lead */
+            handicap_lead?: string | null;
         };
         /** ManageStrikeRequest */
         ManageStrikeRequest: {
@@ -1162,6 +1334,15 @@ export interface components {
             status: string;
             /** Played At */
             played_at: string;
+            /**
+             * Is Handicap
+             * @default false
+             */
+            is_handicap: boolean;
+            /** Handicap Lead */
+            handicap_lead?: string | null;
+            /** Handicap Recipient Id */
+            handicap_recipient_id?: string | null;
         };
         /** NotificationHistoryItem */
         NotificationHistoryItem: {
@@ -1266,6 +1447,21 @@ export interface components {
             veteran_match_count: number;
             /** Is Anonymized */
             is_anonymized: boolean;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /**
+             * Gender
+             * @default unspecified
+             */
+            gender: string;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Favorite Link */
+            favorite_link?: string | null;
+            /** Game Description */
+            game_description?: string | null;
+            /** About Me */
+            about_me?: string | null;
         };
         /** PlayerProfileUpdate */
         PlayerProfileUpdate: {
@@ -1277,6 +1473,18 @@ export interface components {
             home_area?: string | null;
             /** Is Daytime */
             is_daytime?: boolean | null;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Gender */
+            gender?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Favorite Link */
+            favorite_link?: string | null;
+            /** Game Description */
+            game_description?: string | null;
+            /** About Me */
+            about_me?: string | null;
         };
         /** PlayoffBracketResponse */
         PlayoffBracketResponse: {
@@ -1376,7 +1584,7 @@ export interface components {
             applied_credit_id?: string | null;
             /**
              * Currency
-             * @default EUR
+             * @default GHS
              */
             currency: string;
         };
@@ -1460,6 +1668,19 @@ export interface components {
             home_area: string;
             /** Is Daytime */
             is_daytime: boolean;
+            /**
+             * Gender
+             * @default unspecified
+             */
+            gender: string;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Favorite Link */
+            favorite_link?: string | null;
+            /** Game Description */
+            game_description?: string | null;
+            /** About Me */
+            about_me?: string | null;
         };
         /** SetScoreInput */
         SetScoreInput: {
@@ -1534,6 +1755,11 @@ export interface components {
              * @default false
              */
             is_rain_exempt: boolean;
+            /**
+             * Is Handicap
+             * @default false
+             */
+            is_handicap: boolean;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -1605,7 +1831,7 @@ export interface components {
             rating: string;
             /**
              * Home Area
-             * @default Sachsenhausen
+             * @default Accra
              */
             home_area: string;
             /**
@@ -1615,9 +1841,22 @@ export interface components {
             is_daytime: boolean;
             /**
              * Market Slug
-             * @default frankfurt
+             * @default accra
              */
             market_slug: string;
+            /**
+             * Gender
+             * @default unspecified
+             */
+            gender: string;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Favorite Link */
+            favorite_link?: string | null;
+            /** Game Description */
+            game_description?: string | null;
+            /** About Me */
+            about_me?: string | null;
         };
         /** UserResponse */
         UserResponse: {
@@ -1836,6 +2075,92 @@ export interface operations {
             };
         };
     };
+    get_avatar_upload_url_identity_avatar_upload_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_avatar_sandbox_identity_avatar_upload_sandbox_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_profile_identity_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlayerProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_profile_me_profile_patch: {
         parameters: {
             query?: never;
@@ -2050,6 +2375,37 @@ export interface operations {
             };
         };
     };
+    paystack_webhook_webhooks_paystack_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-paystack-signature"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_order_status_orders__order_id__get: {
         parameters: {
             query?: never;
@@ -2068,6 +2424,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_programs_programs_get: {
+        parameters: {
+            query?: {
+                market_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgramResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_program_divisions_programs__program_id__divisions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                program_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DivisionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_division_standings_divisions__division_id__standings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                division_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandingRowResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_handicap_eligibility_route_matches_handicap_check_get: {
+        parameters: {
+            query: {
+                opponent_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandicapCheckResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2218,6 +2698,7 @@ export interface operations {
     latest_scores_feed_scores_latest_get: {
         parameters: {
             query?: {
+                market_id?: string | null;
                 limit?: number;
             };
             header?: never;
@@ -2885,88 +3366,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
-    };
-    list_programs_programs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProgramResponse"][];
-                };
-            };
-        };
-    };
-    list_program_divisions_programs__program_id__divisions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                program_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DivisionResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_division_standings_divisions__division_id__standings_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                division_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StandingRowResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

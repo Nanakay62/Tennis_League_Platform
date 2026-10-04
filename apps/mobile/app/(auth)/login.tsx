@@ -8,14 +8,17 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { colors } from "../../src/theme/colors";
+import { colors, useThemeColors } from "../../src/theme/colors";
 import { API_BASE_URL } from "../../src/api/client";
 import { saveTokens, fetchCurrentUser } from "../../src/lib/auth";
+import { safeReturnTo } from "../../src/lib/safeReturnTo";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { colors } = useThemeColors();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +54,7 @@ export default function LoginScreen() {
       queryClient.setQueryData(["currentUser"], user);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
 
-      router.replace("/account");
+      router.replace(safeReturnTo(returnTo) as never);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to sign in. Please try again.");
     } finally {
@@ -60,38 +63,60 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Sign In</Text>
-        <Text style={styles.subtitle}>Welcome back to Accra Tennis League</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Sign In</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Welcome back to Accra Tennis League
+        </Text>
 
         {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>Email Address</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
             value={email}
             onChangeText={setEmail}
             placeholder="you@example.com"
+            placeholderTextColor={colors.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>Password</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
             value={password}
             onChangeText={setPassword}
             placeholder="••••••••"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
           />
         </View>
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            { backgroundColor: colors.primary },
+            loading && styles.buttonDisabled,
+          ]}
           onPress={handleLogin}
           disabled={loading}
           activeOpacity={0.8}
@@ -104,10 +129,19 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <Link href="/(auth)/register" asChild>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            Don&apos;t have an account?{" "}
+          </Text>
+          <Link
+            href={
+              returnTo
+                ? `/(auth)/register?returnTo=${encodeURIComponent(returnTo)}`
+                : "/(auth)/register"
+            }
+            asChild
+          >
             <TouchableOpacity>
-              <Text style={styles.linkText}>Create Account</Text>
+              <Text style={[styles.linkText, { color: colors.primary }]}>Create Account</Text>
             </TouchableOpacity>
           </Link>
         </View>

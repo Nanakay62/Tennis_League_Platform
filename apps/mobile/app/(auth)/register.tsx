@@ -8,22 +8,27 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { colors } from "../../src/theme/colors";
+import { colors, useThemeColors } from "../../src/theme/colors";
 import { API_BASE_URL } from "../../src/api/client";
 import { saveTokens, fetchCurrentUser } from "../../src/lib/auth";
+import { safeReturnTo } from "../../src/lib/safeReturnTo";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { colors } = useThemeColors();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const queryClient = useQueryClient();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [rating, setRating] = useState("3.5");
-  const [homeArea, setHomeArea] = useState("Sachsenhausen");
+  const [homeArea, setHomeArea] = useState("Accra");
   const [isDaytime, setIsDaytime] = useState(false);
+  const [gender, setGender] = useState("unspecified");
+  const [birthYear, setBirthYear] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -54,6 +59,8 @@ export default function RegisterScreen() {
           home_area: homeArea.trim(),
           is_daytime: isDaytime,
           market_slug: "accra",
+          gender,
+          birth_year: birthYear.trim() ? parseInt(birthYear.trim(), 10) : undefined,
         }),
       });
 
@@ -70,7 +77,7 @@ export default function RegisterScreen() {
       queryClient.setQueryData(["currentUser"], user);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
 
-      router.replace("/account");
+      router.replace(safeReturnTo(returnTo) as never);
     } catch (err: any) {
       setErrorMsg(err.message || "Could not complete registration.");
     } finally {
@@ -79,67 +86,116 @@ export default function RegisterScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Join Accra Tennis</Text>
-        <Text style={styles.subtitle}>Create your profile and skill rating</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Join Accra Tennis</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Create your profile and skill rating
+        </Text>
 
         {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Full Name *</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>Full Name *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
             value={displayName}
             onChangeText={setDisplayName}
-            placeholder="e.g. Lukas Schmidt"
+            placeholder="Enter your full name"
+            placeholderTextColor={colors.textMuted}
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email Address *</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>Email Address *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
             value={email}
             onChangeText={setEmail}
-            placeholder="lukas@example.com"
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password (min 8 chars) *</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>Password (min 8 chars) *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
             value={password}
             onChangeText={setPassword}
             placeholder="••••••••"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Mobile Phone (for match scheduling)</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
+            Mobile Phone (for match scheduling)
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
             value={phone}
             onChangeText={setPhone}
-            placeholder="+49 170 1234567"
+            placeholder="+233 24 123 4567"
+            placeholderTextColor={colors.textMuted}
             keyboardType="phone-pad"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Self-Rated NTRP Level</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>Self-Rated NTRP Level</Text>
           <View style={styles.ratingRow}>
             {["3.0", "3.5", "4.0", "4.5+"].map((r) => (
               <TouchableOpacity
                 key={r}
-                style={[styles.ratingBtn, rating === r && styles.ratingBtnActive]}
+                style={[
+                  styles.ratingBtn,
+                  { borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
+                  rating === r && {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.accentSecondary,
+                  },
+                ]}
                 onPress={() => setRating(r)}
               >
-                <Text style={[styles.ratingText, rating === r && styles.ratingTextActive]}>
+                <Text
+                  style={[
+                    styles.ratingText,
+                    { color: colors.textSecondary },
+                    rating === r && { color: colors.primary, fontWeight: "700" },
+                  ]}
+                >
                   {r}
                 </Text>
               </TouchableOpacity>
@@ -148,12 +204,93 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Home Playing Region / Area</Text>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
+            Home Playing Region / Area *
+          </Text>
+          <View style={styles.ratingRow}>
+            {["Accra", "Tema"].map((area) => (
+              <TouchableOpacity
+                key={area}
+                style={[
+                  styles.ratingBtn,
+                  { borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
+                  homeArea === area && {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.accentSecondary,
+                  },
+                ]}
+                onPress={() => setHomeArea(area)}
+              >
+                <Text
+                  style={[
+                    styles.ratingText,
+                    { color: colors.textSecondary },
+                    homeArea === area && { color: colors.primary, fontWeight: "700" },
+                  ]}
+                >
+                  {area}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
+            Gender (for division eligibility)
+          </Text>
+          <View style={styles.ratingRow}>
+            {[
+              { id: "male", label: "Male" },
+              { id: "female", label: "Female" },
+              { id: "non_binary", label: "Non-binary" },
+              { id: "unspecified", label: "Skip" },
+            ].map((g) => (
+              <TouchableOpacity
+                key={g.id}
+                style={[
+                  styles.ratingBtn,
+                  { borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
+                  gender === g.id && {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.accentSecondary,
+                  },
+                ]}
+                onPress={() => setGender(g.id)}
+              >
+                <Text
+                  style={[
+                    styles.ratingText,
+                    { color: colors.textSecondary },
+                    gender === g.id && { color: colors.primary, fontWeight: "700" },
+                  ]}
+                >
+                  {g.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
+            Birth Year (optional — required for 40+ divisions)
+          </Text>
           <TextInput
-            style={styles.input}
-            value={homeArea}
-            onChangeText={setHomeArea}
-            placeholder="e.g. Accra (Airport, East Legon) or Tema"
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+              },
+            ]}
+            value={birthYear}
+            onChangeText={setBirthYear}
+            placeholder="e.g. 1984"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            maxLength={4}
           />
         </View>
 
@@ -162,16 +299,26 @@ export default function RegisterScreen() {
           onPress={() => setIsDaytime(!isDaytime)}
           activeOpacity={0.7}
         >
-          <View style={[styles.checkbox, isDaytime && styles.checkboxActive]}>
+          <View
+            style={[
+              styles.checkbox,
+              { borderColor: colors.border, backgroundColor: colors.surface },
+              isDaytime && { backgroundColor: colors.primary, borderColor: colors.primary },
+            ]}
+          >
             {isDaytime ? <Text style={styles.checkmark}>✓</Text> : null}
           </View>
-          <Text style={styles.checkboxLabel}>
-            I am available for daytime matches (displays as "(d)" in standings)
+          <Text style={[styles.checkboxLabel, { color: colors.textSecondary }]}>
+            I am available for daytime matches (displays as &quot;(d)&quot; in standings)
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            { backgroundColor: colors.primary },
+            loading && styles.buttonDisabled,
+          ]}
           onPress={handleRegister}
           disabled={loading}
           activeOpacity={0.8}
@@ -184,10 +331,19 @@ export default function RegisterScreen() {
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <Link href="/(auth)/login" asChild>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            Already have an account?{" "}
+          </Text>
+          <Link
+            href={
+              returnTo
+                ? `/(auth)/login?returnTo=${encodeURIComponent(returnTo)}`
+                : "/(auth)/login"
+            }
+            asChild
+          >
             <TouchableOpacity>
-              <Text style={styles.linkText}>Sign In</Text>
+              <Text style={[styles.linkText, { color: colors.primary }]}>Sign In</Text>
             </TouchableOpacity>
           </Link>
         </View>

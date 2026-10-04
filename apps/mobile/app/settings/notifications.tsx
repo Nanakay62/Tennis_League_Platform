@@ -27,32 +27,36 @@ export default function NotificationsScreen() {
   });
 
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  async function loadSettings() {
-    const token = await getAccessToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const [res, historyData] = await Promise.all([
-        fetch(`${API_BASE_URL}/me/communication-settings`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        getNotificationHistory(),
-      ]);
-      if (res.ok) {
-        const data = await res.json();
-        setSettings(data);
+    let active = true;
+    async function loadSettings() {
+      const token = await getAccessToken();
+      if (!token) {
+        if (active) setLoading(false);
+        return;
       }
-      setHistory(historyData);
-    } finally {
-      setLoading(false);
+
+      try {
+        const [res, historyData] = await Promise.all([
+          fetch(`${API_BASE_URL}/me/communication-settings`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          getNotificationHistory(),
+        ]);
+        if (res.ok && active) {
+          const data = await res.json();
+          setSettings(data);
+        }
+        if (active) setHistory(historyData);
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
+
+    loadSettings();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function toggleSetting(key: keyof typeof settings, value: boolean) {
     const updated = { ...settings, [key]: value };
@@ -173,7 +177,7 @@ export default function NotificationsScreen() {
                 Weekly Schedule Nudges
               </Text>
               <Text style={[styles.rowDesc, { color: colors.textSecondary }]}>
-                Reminders when a match hasn't been arranged in 7 days
+                Reminders when a match hasn&apos;t been arranged in 7 days
               </Text>
             </View>
             <Switch

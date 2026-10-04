@@ -37,8 +37,8 @@ export default function ProgramDivisionsScreen() {
               key={item.id}
               icon="shield"
               title={item.name}
-              subtitle={`NTRP ${item.ratingBand} • ${item.playersCount} Enrolled Players`}
-              badge={`NTRP ${item.ratingBand}`}
+              subtitle={`NTRP ${item.ratingBand}${item.genderConstraint && item.genderConstraint !== "open" ? ` • ${item.genderConstraint === "men" ? "Men's" : "Women's"}` : ""}${item.minAge ? ` • ${item.minAge}+` : ""} • ${item.playersCount} Enrolled Players`}
+              badge={item.genderConstraint && item.genderConstraint !== "open" ? `${item.genderConstraint === "men" ? "Men" : "Women"} ${item.ratingBand}` : `NTRP ${item.ratingBand}`}
               href={`/divisions/${item.id}`}
               isLast={idx === divisions.length - 1}
             />

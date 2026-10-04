@@ -7,16 +7,18 @@ import {
   RefreshControl,
   ActivityIndicator,
   Linking,
-  Image,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../src/theme/colors";
+import { useCurrentUser } from "../../src/lib/auth";
 import { getCompatiblePartners, PartnerMatch } from "../../src/api/client";
 import { AppShell, Card, Badge, Button, EmptyState, Avatar } from "../../src/components";
 
 export default function PartnerProgramScreen() {
   const { colors, isDark } = useThemeColors();
+  const { data: user } = useCurrentUser();
+  const userArea = user?.homeArea || "Accra";
 
   const {
     data: partners,
@@ -117,7 +119,7 @@ export default function PartnerProgramScreen() {
           Practice Partners
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Matched within ±0.5 NTRP in your Accra/Tema area.
+          Matched within ±0.5 NTRP in your {userArea} area.
         </Text>
       </View>
 
@@ -184,7 +186,7 @@ export default function PartnerProgramScreen() {
             <EmptyState
               icon="users"
               title="No partners found in this band"
-              message="More players in Accra & Tema are joining weekly!"
+              message={`More players in ${userArea} are joining weekly!`}
             />
           }
         />

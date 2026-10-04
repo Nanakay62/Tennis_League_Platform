@@ -45,7 +45,16 @@ export default function LatestScoresScreen() {
     return (
       <Card style={styles.card}>
         <View style={styles.cardHeader}>
-          <Badge variant="neutral" size="sm" label={item.division_name} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Badge variant="neutral" size="sm" label={item.division_name} />
+            {item.is_handicap && (
+              <Badge
+                variant="accent"
+                size="sm"
+                label={item.handicap_lead ? `Handicap: ${item.handicap_lead}` : "Handicap"}
+              />
+            )}
+          </View>
           <Text style={[styles.dateText, { color: colors.textSecondary }]}>
             {formattedDate}
           </Text>

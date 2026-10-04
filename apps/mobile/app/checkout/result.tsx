@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useThemeColors } from "../../src/theme/colors";
 import { API_BASE_URL } from "../../src/api/client";
+import { getAccessToken } from "../../src/lib/auth";
 import { AppShell, Card, Button, Badge } from "../../src/components";
 
 export default function CheckoutResultScreen() {
@@ -21,41 +22,46 @@ export default function CheckoutResultScreen() {
   const [orderStatus, setOrderStatus] = useState<string>("paid");
 
   useEffect(() => {
+    async function checkPayment() {
+      if (!lookupId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // In dev mode, trigger mock Paystack webhook fulfillment to verify immediate activation
+        await fetch(`${API_BASE_URL}/webhooks/paystack`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "charge.success",
+            data: {
+              id: `pstk_evt_dev_${lookupId}`,
+              reference: lookupId,
+              status: "success",
+              channel: "mobile_money",
+              amount: 35000,
+            },
+          }),
+        }).catch(() => {});
+
+        const token = await getAccessToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const res = await fetch(`${API_BASE_URL}/orders/${lookupId}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setOrderStatus(data.status);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
     checkPayment();
   }, [lookupId]);
-
-  async function checkPayment() {
-    if (!lookupId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // In dev mode, trigger mock Paystack webhook fulfillment to verify immediate activation
-      await fetch(`${API_BASE_URL}/webhooks/paystack`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "charge.success",
-          data: {
-            id: `pstk_evt_dev_${lookupId}`,
-            reference: lookupId,
-            status: "success",
-            channel: "mobile_money",
-            amount: 35000,
-          },
-        }),
-      }).catch(() => {});
-
-      const res = await fetch(`${API_BASE_URL}/orders/${lookupId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOrderStatus(data.status);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -148,7 +154,7 @@ export default function CheckoutResultScreen() {
               <Button
                 variant="primary"
                 size="lg"
-                onPress={() => router.replace("/divisions/div-comp-1")}
+                onPress={() => router.replace("/divisions/div-accra-comp-1")}
                 iconRight="arrow-right"
                 style={{ width: "100%", marginBottom: 10 }}
               >

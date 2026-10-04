@@ -21,7 +21,8 @@ export const MOCK_IMAGES = {
 export function getPlayerAvatar(name?: string | null) {
   if (!name) return MOCK_IMAGES.avatars.max;
   const lower = name.toLowerCase();
-  if (lower.includes("lukas")) return MOCK_IMAGES.avatars.lukas;
-  if (lower.includes("felix")) return MOCK_IMAGES.avatars.felix;
+  if (lower.includes("kwame") || lower.includes("lukas")) return MOCK_IMAGES.avatars.lukas;
+  if (lower.includes("kofi") || lower.includes("felix")) return MOCK_IMAGES.avatars.felix;
+  if (lower.includes("nana") || lower.includes("max")) return MOCK_IMAGES.avatars.max;
   return MOCK_IMAGES.avatars.max;
 }

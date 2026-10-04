@@ -36,10 +36,12 @@ type TabType = "standings" | "roster" | "playoffs";
 
 export default function DivisionDetailScreen() {
   const { colors } = useThemeColors();
-  const { divisionId } = useLocalSearchParams<{ divisionId: string }>();
+  const { divisionId, tab } = useLocalSearchParams<{ divisionId: string; tab?: string }>();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<TabType>("standings");
+  const [activeTab, setActiveTab] = useState<TabType>(
+    tab === "roster" || tab === "playoffs" ? tab : "standings"
+  );
 
   // Playoff score reporting state
   const [reportingMatch, setReportingMatch] = useState<PlayoffMatch | null>(null);
@@ -147,7 +149,7 @@ export default function DivisionDetailScreen() {
         <Button
           variant="primary"
           size="sm"
-          href={`/scores/submit?divisionId=${divisionId || "div-comp-1"}`}
+          href={`/scores/submit?divisionId=${divisionId || "div-accra-comp-1"}`}
           icon="edit-3"
         >
           Report Score
@@ -219,7 +221,9 @@ export default function DivisionDetailScreen() {
                 message="To protect player privacy (GDPR compliant), opponent telephone numbers and email addresses are strictly gated and accessible only to verified, active players enrolled in this division."
                 action={{
                   label: "Sign In to Access Roster",
-                  href: "/(auth)/login",
+                  href: `/(auth)/login?returnTo=${encodeURIComponent(
+                    `/divisions/${divisionId}?tab=roster`
+                  )}`,
                 }}
               />
             </Card>
@@ -249,7 +253,7 @@ export default function DivisionDetailScreen() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    href={`/scores/submit?divisionId=${divisionId || "div-comp-1"}&opponentId=${item.player_id}`}
+                    href={`/scores/submit?divisionId=${divisionId || "div-accra-comp-1"}&opponentId=${item.player_id}`}
                     icon="edit-3"
                   >
                     Report
@@ -279,6 +283,37 @@ export default function DivisionDetailScreen() {
                       >
                         {item.email}
                       </Button>
+                    )}
+                  </View>
+                )}
+
+                {(Boolean(item.game_description) || Boolean(item.about_me) || Boolean(item.favorite_link)) && (
+                  <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.borderSubtle, borderTopWidth: 1 }}>
+                    {Boolean(item.game_description) && (
+                      <View style={{ marginBottom: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textSecondary }}>
+                          Style & Tactics:{" "}
+                          <Text style={{ fontWeight: "400", color: colors.textPrimary }}>
+                            {item.game_description}
+                          </Text>
+                        </Text>
+                      </View>
+                    )}
+                    {Boolean(item.about_me) && (
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, fontStyle: "italic", marginBottom: 4 }}>
+                        &quot;{item.about_me}&quot;
+                      </Text>
+                    )}
+                    {Boolean(item.favorite_link) && (
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
+                        onPress={() => Linking.openURL(item.favorite_link!)}
+                      >
+                        <Feather name="external-link" size={12} color={colors.primary} style={{ marginRight: 4 }} />
+                        <Text style={{ fontSize: 11, color: colors.primary, textDecorationLine: "underline" }} numberOfLines={1}>
+                          {item.favorite_link}
+                        </Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 )}

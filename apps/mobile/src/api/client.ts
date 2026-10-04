@@ -1,5 +1,17 @@
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "../constants/api";
 export { API_BASE_URL };
+
+export class ApiError extends Error {
+  constructor(public status: number, message?: string) {
+    super(message || `API error: ${status}`);
+    this.name = "ApiError";
+  }
+}
+
+const isDev = typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV !== "production";
+export const USE_MOCKS = Boolean(isDev && process.env.EXPO_PUBLIC_USE_MOCKS === "1");
 
 export interface Program {
   id: string;
@@ -18,6 +30,8 @@ export interface Division {
   name: string;
   ratingBand: string;
   playersCount: number;
+  genderConstraint?: string;
+  minAge?: number | null;
 }
 
 export interface StandingRow {
@@ -39,9 +53,10 @@ export interface StandingRow {
 export async function getPrograms(): Promise<Program[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/programs`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     // Return sample data when API is offline
     return [
       {
@@ -61,19 +76,20 @@ export async function getPrograms(): Promise<Program[]> {
 export async function getProgramDivisions(programId: string): Promise<Division[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/programs/${programId}/divisions`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     return [
       {
-        id: "div-comp-1",
+        id: "div-accra-comp-1",
         programId,
         name: "Competitive (3.5)",
         ratingBand: "3.5",
         playersCount: 6,
       },
       {
-        id: "div-skilled-1",
+        id: "div-accra-skilled-1",
         programId,
         name: "Skilled (3.0)",
         ratingBand: "3.0",
@@ -86,16 +102,17 @@ export async function getProgramDivisions(programId: string): Promise<Division[]
 export async function getDivisionStandings(divisionId: string): Promise<StandingRow[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/divisions/${divisionId}/standings`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     // Reference seed standings matching Phase 2 vertical slice
     return [
       {
         rank: 1,
         playerId: "p1",
-        playerName: "Lukas Schmidt",
-        homeArea: "Sachsenhausen",
+        playerName: "Kwame Mensah",
+        homeArea: "Accra",
         isDaytime: true,
         wins: 5,
         losses: 1,
@@ -109,8 +126,8 @@ export async function getDivisionStandings(divisionId: string): Promise<Standing
       {
         rank: 2,
         playerId: "p2",
-        playerName: "Maximilian Weber",
-        homeArea: "Westend",
+        playerName: "Kofi Boateng",
+        homeArea: "Accra",
         isDaytime: false,
         wins: 4,
         losses: 2,
@@ -124,8 +141,8 @@ export async function getDivisionStandings(divisionId: string): Promise<Standing
       {
         rank: 3,
         playerId: "p3",
-        playerName: "Felix Fischer",
-        homeArea: "Nordend",
+        playerName: "Nana Osei",
+        homeArea: "Accra",
         isDaytime: true,
         wins: 3,
         losses: 3,
@@ -139,8 +156,8 @@ export async function getDivisionStandings(divisionId: string): Promise<Standing
       {
         rank: 4,
         playerId: "p4",
-        playerName: "Stefan Meyer",
-        homeArea: "Bornheim",
+        playerName: "Yaw Appiah",
+        homeArea: "Accra",
         isDaytime: false,
         wins: 2,
         losses: 4,
@@ -170,6 +187,7 @@ export interface SubmitMatchPayload {
   sets: SetScoreInput[];
   minutes_waited?: number;
   retirement_notes?: string;
+  is_handicap?: boolean;
 }
 
 export interface MatchResponse {
@@ -184,6 +202,9 @@ export interface MatchResponse {
   sets_summary: string;
   status: string;
   played_at: string;
+  is_handicap?: boolean;
+  handicap_lead?: string | null;
+  handicap_recipient_id?: string | null;
 }
 
 export interface LatestScoreFeedItem {
@@ -196,6 +217,8 @@ export interface LatestScoreFeedItem {
   outcome_type: string;
   score_line: string;
   played_at: string;
+  is_handicap?: boolean;
+  handicap_lead?: string | null;
 }
 
 export interface RosterPlayerResponse {
@@ -206,10 +229,25 @@ export interface RosterPlayerResponse {
   is_daytime: boolean;
   phone: string | null;
   email: string | null;
+  gender?: string;
+  birth_year?: number | null;
+  favorite_link?: string | null;
+  game_description?: string | null;
+  about_me?: string | null;
 }
 
-import { Platform } from "react-native";
-import * as SecureStore from "expo-secure-store";
+export interface HandicapCheckResponse {
+  eligible: boolean;
+  reason?: string | null;
+  lead?: string | null;
+  court?: string | null;
+  lower_rated_player_id?: string | null;
+  lower_rated_player_name?: string | null;
+  rating_gap?: number;
+  my_match_count?: number;
+  opponent_match_count?: number;
+  min_qualifying_matches: number;
+}
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   try {
@@ -239,6 +277,21 @@ export async function submitMatch(payload: SubmitMatchPayload): Promise<MatchRes
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.detail || "Failed to submit match score");
+  }
+  return data;
+}
+
+export async function checkHandicapEligibility(
+  opponentId: string
+): Promise<HandicapCheckResponse> {
+  const headers = await getAuthHeader();
+  const res = await fetch(
+    `${API_BASE_URL}/matches/handicap-check?opponent_id=${encodeURIComponent(opponentId)}`,
+    { headers }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to check handicap eligibility");
   }
   return data;
 }
@@ -284,17 +337,18 @@ export async function disputeMatch(
 export async function getLatestScoresFeed(): Promise<LatestScoreFeedItem[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/scores/latest`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     // Fallback sample feed
     return [
       {
         id: "m-sample-1",
-        division_id: "div-comp-1",
+        division_id: "div-accra-comp-1",
         division_name: "Competitive (3.5)",
-        winner_name: "Lukas Schmidt",
-        loser_name: "Maximilian Weber",
+        winner_name: "Kwame Mensah",
+        loser_name: "Kofi Boateng",
         format: "best_of_three",
         outcome_type: "played",
         score_line: "6-3; 6-4",
@@ -302,10 +356,10 @@ export async function getLatestScoresFeed(): Promise<LatestScoreFeedItem[]> {
       },
       {
         id: "m-sample-2",
-        division_id: "div-comp-1",
+        division_id: "div-accra-comp-1",
         division_name: "Competitive (3.5)",
-        winner_name: "Felix Fischer",
-        loser_name: "Stefan Meyer",
+        winner_name: "Nana Osei",
+        loser_name: "Yaw Appiah",
         format: "match_tiebreak",
         outcome_type: "played",
         score_line: "6-4; 3-6; TB 10-7",
@@ -322,40 +376,44 @@ export async function getDivisionRoster(divisionId: string): Promise<{ players: 
       headers,
     });
 
-    if (res.status === 403) {
+    if (res.status === 401 || res.status === 403) {
       return { players: [], gated: true };
     }
 
     if (!res.ok) {
-      throw new Error(`HTTP error: ${res.status}`);
+      throw new ApiError(res.status, `HTTP error: ${res.status}`);
     }
 
     const players = await res.json();
     return { players, gated: false };
   } catch (err: any) {
-    if (err?.message?.includes("403")) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
       return { players: [], gated: true };
     }
+    if (err?.message?.includes("403") || err?.message?.includes("401")) {
+      return { players: [], gated: true };
+    }
+    if (!USE_MOCKS) throw err;
     // Fallback sample players
     return {
       players: [
         {
           player_id: "p1",
-          display_name: "Lukas Schmidt",
-          home_area: "Sachsenhausen",
+          display_name: "Kwame Mensah",
+          home_area: "Accra",
           rating: "3.5",
           is_daytime: true,
-          phone: "+49 69 111111",
-          email: "lukas@example.com",
+          phone: "+233 24 111 1111",
+          email: "kwame@example.com",
         },
         {
           player_id: "p2",
-          display_name: "Maximilian Weber",
-          home_area: "Westend",
+          display_name: "Kofi Boateng",
+          home_area: "Accra",
           rating: "3.5",
           is_daytime: false,
-          phone: "+49 69 222222",
-          email: "max@example.com",
+          phone: "+233 24 222 2222",
+          email: "kofi@example.com",
         },
       ],
       gated: false,
@@ -395,9 +453,10 @@ export interface PlayoffBracket {
 export async function getDivisionPlayoffs(divisionId: string): Promise<PlayoffBracket[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/divisions/${divisionId}/playoffs`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     // Fallback sample playoff bracket
     return [
       {
@@ -413,9 +472,9 @@ export async function getDivisionPlayoffs(divisionId: string): Promise<PlayoffBr
               id: "m-sf1",
               round_number: 1,
               match_number: 1,
-              player1: { id: "p1", display_name: "Lukas Schmidt", seed_number: 1 },
-              player2: { id: "p4", display_name: "Stefan Meyer", seed_number: 4 },
-              winner: { id: "p1", display_name: "Lukas Schmidt" },
+              player1: { id: "p1", display_name: "Kwame Mensah", seed_number: 1 },
+              player2: { id: "p4", display_name: "Yaw Appiah", seed_number: 4 },
+              winner: { id: "p1", display_name: "Kwame Mensah" },
               score_summary: "6-3, 6-4",
               is_bye: false,
               deadline: new Date(Date.now() + 86400000 * 3).toISOString(),
@@ -425,8 +484,8 @@ export async function getDivisionPlayoffs(divisionId: string): Promise<PlayoffBr
               id: "m-sf2",
               round_number: 1,
               match_number: 2,
-              player1: { id: "p2", display_name: "Maximilian Weber", seed_number: 2 },
-              player2: { id: "p3", display_name: "Felix Fischer", seed_number: 3 },
+              player1: { id: "p2", display_name: "Kofi Boateng", seed_number: 2 },
+              player2: { id: "p3", display_name: "Nana Osei", seed_number: 3 },
               winner: null,
               score_summary: null,
               is_bye: false,
@@ -439,7 +498,7 @@ export async function getDivisionPlayoffs(divisionId: string): Promise<PlayoffBr
               id: "m-final",
               round_number: 2,
               match_number: 1,
-              player1: { id: "p1", display_name: "Lukas Schmidt" },
+              player1: { id: "p1", display_name: "Kwame Mensah" },
               player2: null,
               winner: null,
               score_summary: null,
@@ -572,9 +631,10 @@ export async function getCourts(filters?: {
       params.append("has_hitting_wall", String(filters.has_hitting_wall));
 
     const res = await fetch(`${API_BASE_URL}/courts?${params.toString()}`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     // Fallback sample courts
     return [
       {
@@ -637,7 +697,7 @@ export async function getCourts(filters?: {
 
 export async function getCourtDetail(courtId: string): Promise<CourtDetail> {
   const res = await fetch(`${API_BASE_URL}/courts/${courtId}`);
-  if (!res.ok) throw new Error("Court not found");
+  if (!res.ok) throw new ApiError(res.status, "Court not found");
   return await res.json();
 }
 
@@ -664,37 +724,38 @@ export async function getCompatiblePartners(): Promise<PartnerMatch[]> {
   const headers = await getAuthHeader();
   try {
     const res = await fetch(`${API_BASE_URL}/partners`, { headers });
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     // Fallback sample partners
     return [
       {
         player_id: "p1",
-        display_name: "Lukas Schmidt",
+        display_name: "Kwame Mensah",
         rating: "3.5",
-        home_area: "Sachsenhausen",
+        home_area: "Accra",
         is_daytime: true,
-        phone: "+49 171 111111",
-        email: "lukas@example.com",
+        phone: "+233 24 111 1111",
+        email: "kwame@example.com",
       },
       {
         player_id: "p2",
-        display_name: "Maximilian Weber",
+        display_name: "Kofi Boateng",
         rating: "3.5",
-        home_area: "Westend",
+        home_area: "Accra",
         is_daytime: false,
-        phone: "+49 172 222222",
-        email: "max@example.com",
+        phone: "+233 24 222 2222",
+        email: "kofi@example.com",
       },
       {
         player_id: "p3",
-        display_name: "Felix Fischer",
+        display_name: "Nana Osei",
         rating: "3.0",
-        home_area: "Nordend",
+        home_area: "Accra",
         is_daytime: true,
-        phone: "+49 173 333333",
-        email: "felix@example.com",
+        phone: "+233 24 333 3333",
+        email: "nana@example.com",
       },
     ];
   }
@@ -703,39 +764,40 @@ export async function getCompatiblePartners(): Promise<PartnerMatch[]> {
 export async function getPOTYLeaderboard(): Promise<POTYItem[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/community/poty`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     return [
       {
         rank: 1,
         player_id: "p1",
-        display_name: "Lukas Schmidt",
+        display_name: "Kwame Mensah",
         total_points: 185,
         matches_played: 12,
         matches_won: 9,
         distinct_opponents: 8,
-        home_area: "Sachsenhausen",
+        home_area: "Accra",
       },
       {
         rank: 2,
         player_id: "p2",
-        display_name: "Maximilian Weber",
+        display_name: "Kofi Boateng",
         total_points: 160,
         matches_played: 11,
         matches_won: 7,
         distinct_opponents: 7,
-        home_area: "Westend",
+        home_area: "Accra",
       },
       {
         rank: 3,
         player_id: "p3",
-        display_name: "Felix Fischer",
+        display_name: "Nana Osei",
         total_points: 135,
         matches_played: 10,
         matches_won: 5,
         distinct_opponents: 6,
-        home_area: "Nordend",
+        home_area: "Accra",
       },
     ];
   }
@@ -745,9 +807,10 @@ export async function getReferralInfo(): Promise<ReferralInfo> {
   const headers = await getAuthHeader();
   try {
     const res = await fetch(`${API_BASE_URL}/community/referral`, { headers });
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {
+    if (!USE_MOCKS) throw err;
     return {
       referral_code: "TENNIS-KWAME-9B41",
       referral_link: "https://accra-tennis.com/join?ref=TENNIS-KWAME-9B41",
@@ -809,9 +872,10 @@ export async function getUserDevices(): Promise<DeviceResponse[]> {
   const headers = await getAuthHeader();
   try {
     const res = await fetch(`${API_BASE_URL}/devices`, { headers });
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
-  } catch {
+  } catch (err) {
+    if (!USE_MOCKS) throw err;
     return [];
   }
 }
@@ -820,21 +884,54 @@ export async function getNotificationHistory(): Promise<NotificationHistoryItem[
   const headers = await getAuthHeader();
   try {
     const res = await fetch(`${API_BASE_URL}/notifications/history`, { headers });
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
-  } catch {
+  } catch (err) {
+    if (!USE_MOCKS) throw err;
     return [
       {
         id: "notif-sample-1",
         channel: "push",
         event_type: "kickoff",
         title: "🎾 Kickoff: 3.5 Fall Division",
-        body: "Hi Lukas! Your division is live with 6 players. Open the app to view your roster.",
+        body: "Hi Kwame! Your division is live with 6 players. Open the app to view your roster.",
         status: "sent",
         created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
       },
     ];
   }
+}
+
+export interface PlayerProfileUpdatePayload {
+  display_name?: string;
+  phone?: string;
+  home_area?: string;
+  is_daytime?: boolean;
+  avatar_url?: string;
+  gender?: string;
+  birth_year?: number | null;
+  favorite_link?: string | null;
+  game_description?: string | null;
+  about_me?: string | null;
+}
+
+export async function updatePlayerProfile(
+  payload: PlayerProfileUpdatePayload
+): Promise<any> {
+  const headers = await getAuthHeader();
+  const res = await fetch(`${API_BASE_URL}/me/profile`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to update profile");
+  }
+  return data;
 }
 
 

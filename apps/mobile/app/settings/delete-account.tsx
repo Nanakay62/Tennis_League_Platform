@@ -82,7 +82,7 @@ export default function DeleteAccountScreen() {
               <Feather name="check" size={14} color={colors.danger} style={{ marginRight: 8, marginTop: 2 }} />
               <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
                 <Text style={{ fontWeight: "700", color: colors.textPrimary }}>Standings Preserved: </Text>
-                To avoid breaking division tables for your opponents, match results are kept but anonymized under <Text style={{ fontWeight: "700" }}>"Former Player"</Text>.
+                To avoid breaking division tables for your opponents, match results are kept but anonymized under <Text style={{ fontWeight: "700" }}>&quot;Former Player&quot;</Text>.
               </Text>
             </View>
 

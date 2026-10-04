@@ -15,7 +15,7 @@ interface TabItem {
 // Exactly 5 items (Constraint #3)
 const TABS: TabItem[] = [
   { name: "Home", href: "/", icon: "home", exact: true },
-  { name: "My League", href: "/divisions/div-comp-1", icon: "shield" },
+  { name: "My League", href: "/divisions/div-accra-comp-1", icon: "shield" },
   { name: "Scores", href: "/scores", icon: "clipboard" },
   { name: "Courts", href: "/courts", icon: "map-pin" },
   { name: "Community", href: "/community/poty", icon: "users" },
