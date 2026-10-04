@@ -38,5 +38,4 @@ class ReportPlayoffScoreRequest(BaseModel):
 
 
 class GeneratePlayoffsRequest(BaseModel):
-    min_wins: int = 5
     enable_veteran_seeding: bool = True

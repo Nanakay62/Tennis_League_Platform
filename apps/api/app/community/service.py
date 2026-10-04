@@ -23,6 +23,7 @@ from app.domain.partners import (
     filter_and_rank_partners,
 )
 from app.identity.models import PlayerProfile, User
+from app.leagues.models import Enrollment, EnrollmentStatus
 from app.matches.models import Match, MatchStatus
 
 
@@ -40,15 +41,19 @@ async def find_matching_partners(
     if not user_prof:
         raise ValueError("Player profile required to match with partners.")
 
-    # Load other active players in the same market
-    stmt = (
-        select(PlayerProfile, User)
-        .join(User, PlayerProfile.user_id == User.id)
-        .where(
-            PlayerProfile.market_id == user.market_id,
-            PlayerProfile.user_id != user.id,
-            User.is_active.is_(True),
+    # Load other active players in the same market and exact same home area
+    conditions = [
+        PlayerProfile.market_id == user.market_id,
+        PlayerProfile.user_id != user.id,
+        User.is_active.is_(True),
+    ]
+    if user_prof.home_area:
+        conditions.append(
+            func.lower(PlayerProfile.home_area) == func.lower(user_prof.home_area.strip())
         )
+
+    stmt = (
+        select(PlayerProfile, User).join(User, PlayerProfile.user_id == User.id).where(*conditions)
     )
     res = await session.execute(stmt)
     rows = res.all()
@@ -70,6 +75,17 @@ async def find_matching_partners(
         opponent_id = m.loser_id if m.winner_id == user_prof.id else m.winner_id
         played_counts[opponent_id] += 1
 
+    # Check if requesting user has an active or placed enrollment (Rule 5 contact details restriction)
+    has_active_stmt = (
+        select(Enrollment.id)
+        .where(
+            Enrollment.user_id == user.id,
+            Enrollment.status.in_([EnrollmentStatus.ACTIVE, EnrollmentStatus.PLACED_IN_DIVISION]),
+        )
+        .limit(1)
+    )
+    has_active = (await session.execute(has_active_stmt)).first() is not None
+
     candidates: list[CandidatePartner] = []
     for prof, u in rows:
         candidates.append(
@@ -79,8 +95,8 @@ async def find_matching_partners(
                 rating=prof.rating,
                 home_area=prof.home_area,
                 is_daytime=prof.is_daytime,
-                phone=prof.phone,
-                email=u.email,
+                phone=prof.phone if has_active else None,
+                email=u.email if has_active else None,
                 matches_played_together=played_counts[prof.id],
             )
         )
@@ -164,9 +180,13 @@ async def get_courts_directory(
     return results
 
 
-async def get_court_detail(session: AsyncSession, court_id: str) -> CourtDetailResponse:
+async def get_court_detail(
+    session: AsyncSession, court_id: str, market_id: str | None = None
+) -> CourtDetailResponse:
     """Retrieve detailed court information including all reviews."""
     stmt = select(Court).where(Court.id == court_id).options(selectinload(Court.reviews))
+    if market_id:
+        stmt = stmt.where(Court.market_id == market_id)
     res = await session.execute(stmt)
     court = res.scalar_one_or_none()
     if not court:
@@ -215,19 +235,33 @@ async def add_court_review(
     court_id: str,
     user: User,
     req: CreateCourtReviewRequest,
+    market_id: str | None = None,
 ) -> CourtReviewResponse:
-    """Submit a rating and review for a tennis court."""
-    court_res = await session.execute(select(Court).where(Court.id == court_id))
+    """Submit or update a rating and review for a tennis court (1 review per user)."""
+    query = select(Court).where(Court.id == court_id)
+    if market_id:
+        query = query.where(Court.market_id == market_id)
+    court_res = await session.execute(query)
     if not court_res.scalar_one_or_none():
         raise ValueError(f"Court '{court_id}' not found.")
 
-    review = CourtReview(
-        court_id=court_id,
-        user_id=user.id,
-        rating=req.rating,
-        comment=req.comment,
+    existing_stmt = select(CourtReview).where(
+        CourtReview.court_id == court_id,
+        CourtReview.user_id == user.id,
     )
-    session.add(review)
+    existing = (await session.execute(existing_stmt)).scalar_one_or_none()
+    if existing:
+        existing.rating = req.rating
+        existing.comment = req.comment
+        review = existing
+    else:
+        review = CourtReview(
+            court_id=court_id,
+            user_id=user.id,
+            rating=req.rating,
+            comment=req.comment,
+        )
+        session.add(review)
     await session.commit()
 
     return CourtReviewResponse(
@@ -311,16 +345,17 @@ async def get_or_create_user_referral_info(
     user: User,
 ) -> ReferralInfoResponse:
     """Retrieve or generate user's personal referral code and credit track record."""
-    ref_stmt = select(Referral).where(Referral.referrer_id == user.id)
+    ref_stmt = select(Referral).where(Referral.referrer_id == user.id).order_by(Referral.created_at)
     ref_res = await session.execute(ref_stmt)
     referrals = ref_res.scalars().all()
 
     if referrals:
         code = referrals[0].referral_code
     else:
-        # Create a clean referral code
-        base_name = user.email.split("@")[0].upper()[:6]
-        code = f"TENNIS-{base_name}-{user.id[:4].upper()}"
+        import secrets
+
+        # Create a clean referral code without leaking email or identity details
+        code = f"TENNIS-{secrets.token_hex(4).upper()}"
         initial_ref = Referral(
             referrer_id=user.id,
             referral_code=code,

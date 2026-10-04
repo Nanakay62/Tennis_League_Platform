@@ -1,11 +1,14 @@
 """FastAPI application factory, routers, and health checks."""
 
+import logging
+import os
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import setup_admin
@@ -13,17 +16,11 @@ from app.admin_actions.routes import router as admin_actions_router
 from app.billing import models as _billing_models  # noqa: F401
 from app.billing.routes import router as billing_router
 from app.catalog import models as _catalog_models  # noqa: F401
+from app.catalog.routes import router as catalog_router
 from app.community import models as _community_models  # noqa: F401
 from app.community.routes import router as community_router
 from app.config import get_settings
-from app.db import Base, engine, get_db
-from app.domain.standings import (
-    DivisionRules,
-    compute_standings,
-)
-from app.domain.standings import (
-    StandingRow as DomainStandingRow,
-)
+from app.db import Base, async_session_maker, engine, get_db
 from app.identity import models as _identity_models  # noqa: F401
 from app.identity.routes import router as identity_router
 from app.leagues import models as _leagues_models  # noqa: F401
@@ -34,8 +31,18 @@ from app.notify import models as _notify_models  # noqa: F401
 from app.notify.routes import router as notify_router
 from app.playoffs import models as _playoffs_models  # noqa: F401
 from app.playoffs.routes import router as playoffs_router
+from app.seed import seed_accra_and_tema_market
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+async def maybe_seed(session: AsyncSession) -> None:
+    """Run initial demo seeding only if SEED_DEMO_DATA is enabled."""
+    if settings.SEED_DEMO_DATA:
+        if not settings.SEED_DEMO_PASSWORD:
+            raise ValueError("SEED_DEMO_PASSWORD must be configured when SEED_DEMO_DATA is True")
+        await seed_accra_and_tema_market(session)
 
 
 @asynccontextmanager
@@ -54,6 +61,14 @@ async def lifespan(app: FastAPI):
     if "sqlite" in settings.DATABASE_URL:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+    # Guarded seeding for initial programs, divisions, and baseline records
+    try:
+        async with async_session_maker() as seed_session:
+            await maybe_seed(seed_session)
+    except (SQLAlchemyError, ValueError) as e:
+        logger.warning("Startup seeding notice: %s", e)
+
     yield
 
 
@@ -76,6 +91,7 @@ app.add_middleware(
 
 app.include_router(identity_router)
 app.include_router(billing_router)
+app.include_router(catalog_router)
 app.include_router(matches_router)
 app.include_router(playoffs_router)
 app.include_router(community_router)
@@ -86,140 +102,17 @@ app.include_router(admin_actions_router)
 admin = setup_admin(app)
 
 # Mount local media directory for avatars in sandbox / local development mode
-import os
-
-from fastapi.staticfiles import StaticFiles
-
 os.makedirs("media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="media"), name="media")
 
 
-# Pydantic Schemas for API contract
+# Pydantic Schema for Health Check API contract
 class HealthResponse(BaseModel):
     status: str
     environment: str
     market: str
     timezone: str
     database: str = "ok"
-
-
-class ProgramResponse(BaseModel):
-    id: str
-    name: str
-    type: str
-    startDate: str
-    endDate: str
-    status: str
-    priceCents: int
-    currency: str
-
-
-class DivisionResponse(BaseModel):
-    id: str
-    programId: str
-    name: str
-    ratingBand: str
-    playersCount: int
-
-
-class StandingRowResponse(BaseModel):
-    rank: int
-    playerId: str
-    playerName: str
-    homeArea: str
-    isDaytime: bool
-    wins: int
-    losses: int
-    gamesWon: int
-    gamesLost: int
-    gamesPct: float
-    gamesPctDisplay: str
-    playoffIndicator: str
-    isPlayoffEligible: bool
-
-
-# Mock in-memory state for initial vertical slice
-ACCRA_PROGRAMS = [
-    {
-        "id": "prog-accra-fall-2026",
-        "name": "Accra Fall Season 2026",
-        "type": "FLEX_SEASON",
-        "startDate": "2026-10-01",
-        "endDate": "2026-11-20",
-        "status": "Open for Enrollment",
-        "priceCents": 35000,
-        "currency": "GHS",
-    }
-]
-
-ACCRA_DIVISIONS = [
-    {
-        "id": "div-comp-1",
-        "programId": "prog-accra-fall-2026",
-        "name": "Competitive (3.5)",
-        "ratingBand": "3.5",
-        "playersCount": 6,
-    },
-    {
-        "id": "div-skilled-1",
-        "programId": "prog-accra-fall-2026",
-        "name": "Skilled (3.0)",
-        "ratingBand": "3.0",
-        "playersCount": 6,
-    },
-]
-
-# Raw seed players and records for Phase 2 vertical slice
-SEED_PLAYERS_RAW = [
-    DomainStandingRow(
-        player_id="p1",
-        player_name="Kwame Mensah",
-        home_area="Accra",
-        is_daytime=True,
-        wins=5,
-        losses=1,
-        games_won=36,
-        games_lost=15,
-        distinct_opponents=5,
-        is_new_player=False,
-    ),
-    DomainStandingRow(
-        player_id="p2",
-        player_name="Kofi Boateng",
-        home_area="Accra",
-        is_daytime=False,
-        wins=4,
-        losses=2,
-        games_won=30,
-        games_lost=22,
-        distinct_opponents=4,
-        is_new_player=False,
-    ),
-    DomainStandingRow(
-        player_id="p3",
-        player_name="Nana Osei",
-        home_area="Tema",
-        is_daytime=True,
-        wins=3,
-        losses=3,
-        games_won=25,
-        games_lost=25,
-        distinct_opponents=4,
-        is_new_player=True,
-    ),
-    DomainStandingRow(
-        player_id="p4",
-        player_name="Yaw Asante",
-        home_area="Tema",
-        is_daytime=False,
-        wins=2,
-        losses=4,
-        games_won=18,
-        games_lost=31,
-        distinct_opponents=3,
-        is_new_player=False,
-    ),
-]
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -241,49 +134,3 @@ async def health_check(session: AsyncSession = Depends(get_db)) -> HealthRespons
         timezone=settings.DEFAULT_MARKET_TIMEZONE,
         database=db_status,
     )
-
-
-@app.get("/programs", response_model=list[ProgramResponse])
-async def list_programs() -> list[dict[str, Any]]:
-    """List available league programs in the current market."""
-    return ACCRA_PROGRAMS
-
-
-@app.get("/programs/{program_id}/divisions", response_model=list[DivisionResponse])
-async def list_program_divisions(program_id: str) -> list[dict[str, Any]]:
-    """List divisions belonging to a given program."""
-    divs = [d for d in ACCRA_DIVISIONS if d["programId"] == program_id]
-    if not divs:
-        # Fallback to returning divisions for demo/testing
-        return ACCRA_DIVISIONS
-    return divs
-
-
-@app.get("/divisions/{division_id}/standings", response_model=list[StandingRowResponse])
-async def get_division_standings(division_id: str) -> list[StandingRowResponse]:
-    """Retrieve computed standings for a division, sorted by domain rules."""
-    rules = DivisionRules(
-        playoff_min_wins=settings.playoff_min_wins,
-        new_player_min_matches=settings.new_player_min_matches,
-    )
-    # Compute rankings using pure domain engine
-    ranked_rows = compute_standings(list(SEED_PLAYERS_RAW), rules=rules)
-
-    return [
-        StandingRowResponse(
-            rank=r.rank,
-            playerId=r.player_id,
-            playerName=r.player_name,
-            homeArea=r.home_area,
-            isDaytime=r.is_daytime,
-            wins=r.wins,
-            losses=r.losses,
-            gamesWon=r.games_won,
-            gamesLost=r.games_lost,
-            gamesPct=r.games_pct,
-            gamesPctDisplay=r.games_pct_display,
-            playoffIndicator=r.playoff_indicator,
-            isPlayoffEligible=r.is_playoff_eligible,
-        )
-        for r in ranked_rows
-    ]

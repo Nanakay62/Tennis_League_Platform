@@ -1,6 +1,7 @@
 """Service layer for custom administrative actions with strict audit trail enforcement."""
 
 import json
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +15,8 @@ from app.admin_actions.schemas import (
     VoidMatchRequest,
 )
 from app.catalog.models import Division
-from app.identity.models import User
+from app.domain.eligibility import check_division_eligibility
+from app.identity.models import PlayerProfile, User
 from app.leagues.models import Enrollment, EnrollmentStatus
 from app.matches.models import (
     AuditLog,
@@ -33,15 +35,43 @@ async def execute_bulk_placement(
     admin_user: User,
     req: BulkPlacementRequest,
 ) -> AdminActionResponse:
-    """Place players into a division in bulk, logging an AuditLog row for each placement."""
+    """Place players into a division in bulk with partial-success-with-a-report behavior.
+
+    Eligible players are placed; ineligible players are skipped and reported with reasons.
+    Division constraints are enforced at placement time, never retroactively invalidating existing players.
+    """
     div = await session.get(Division, req.division_id)
     if not div:
         raise ValueError(f"Target division '{req.division_id}' not found.")
 
     placed_count = 0
+    skipped_players: list[dict[str, str]] = []
     last_audit_id = ""
+    current_year = datetime.now(UTC).year
 
     for user_id in req.user_ids:
+        # Check player eligibility against division constraints
+        prof_stmt = select(PlayerProfile).where(PlayerProfile.user_id == user_id)
+        prof = (await session.execute(prof_stmt)).scalar_one_or_none()
+
+        is_eligible, ineligibility_reason = check_division_eligibility(
+            player_gender=prof.gender if prof else "unspecified",
+            player_birth_year=prof.birth_year if prof else None,
+            division_gender_constraint=div.gender_constraint,
+            division_min_age=div.min_age,
+            current_year=current_year,
+        )
+
+        if not is_eligible:
+            skipped_players.append(
+                {
+                    "user_id": user_id,
+                    "player_name": prof.display_name if prof else user_id,
+                    "reason": ineligibility_reason or "Ineligible",
+                }
+            )
+            continue
+
         # Find active enrollment for this user and program
         stmt = select(Enrollment).where(
             Enrollment.user_id == user_id,
@@ -79,9 +109,23 @@ async def execute_bulk_placement(
         placed_count += 1
 
     await session.commit()
+
+    if placed_count > 0:
+        msg_parts = [f"Successfully placed {placed_count} players into division '{div.name}'."]
+        if skipped_players:
+            reasons = "; ".join(f"{s['player_name']}: {s['reason']}" for s in skipped_players)
+            msg_parts.append(f"Skipped {len(skipped_players)} ineligible player(s): {reasons}")
+        message = " ".join(msg_parts)
+    else:
+        if skipped_players:
+            reasons = "; ".join(f"{s['player_name']}: {s['reason']}" for s in skipped_players)
+            message = f"Placed 0 players into division '{div.name}'. Skipped {len(skipped_players)} ineligible player(s): {reasons}."
+        else:
+            message = f"No players provided for placement into division '{div.name}'."
+
     return AdminActionResponse(
         status="ok",
-        message=f"Successfully placed {placed_count} players into division '{div.name}'.",
+        message=message,
         audit_id=last_audit_id,
     )
 
@@ -91,10 +135,27 @@ async def execute_transfer_player(
     admin_user: User,
     req: TransferPlayerRequest,
 ) -> AdminActionResponse:
-    """Transfer an enrolled player between divisions with audit log."""
+    """Transfer an enrolled player between divisions with audit log and constraint checking."""
     target_div = await session.get(Division, req.to_division_id)
     if not target_div:
         raise ValueError(f"Target division '{req.to_division_id}' not found.")
+
+    # Check target division eligibility
+    prof_stmt = select(PlayerProfile).where(PlayerProfile.user_id == req.user_id)
+    prof = (await session.execute(prof_stmt)).scalar_one_or_none()
+
+    current_year = datetime.now(UTC).year
+    is_eligible, ineligibility_reason = check_division_eligibility(
+        player_gender=prof.gender if prof else "unspecified",
+        player_birth_year=prof.birth_year if prof else None,
+        division_gender_constraint=target_div.gender_constraint,
+        division_min_age=target_div.min_age,
+        current_year=current_year,
+    )
+    if not is_eligible:
+        raise ValueError(
+            f"Player '{prof.display_name if prof else req.user_id}' is not eligible for division '{target_div.name}': {ineligibility_reason}"
+        )
 
     stmt = select(Enrollment).where(
         Enrollment.user_id == req.user_id,

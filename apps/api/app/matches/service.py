@@ -3,7 +3,8 @@
 import json
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from fastapi import HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +18,7 @@ from app.domain.discipline import (
 from app.domain.scoring import (
     MatchFormat,
     OutcomeType,
+    evaluate_handicap_eligibility,
     validate_result,
 )
 from app.domain.scoring import (
@@ -41,12 +43,154 @@ from app.matches.models import (
     StrikeStatus,
 )
 from app.matches.schemas import (
+    HandicapCheckResponse,
     LatestScoreFeedItem,
     RosterPlayerResponse,
     SubmitMatchRequest,
 )
 
 settings = get_settings()
+
+
+def parse_rating(val: str | None) -> float | None:
+    """Parse rating string to float, returning None if unrated or invalid."""
+    if not val:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
+async def count_player_confirmed_matches(session: AsyncSession, player_id: str) -> int:
+    """Count confirmed matches played on platform plus any historical imported veteran matches."""
+    stmt = select(func.count(Match.id)).where(
+        (Match.winner_id == player_id) | (Match.loser_id == player_id),
+        Match.status == MatchStatus.CONFIRMED,
+    )
+    res = await session.execute(stmt)
+    db_matches = res.scalar_one() or 0
+
+    prof_stmt = select(PlayerProfile.veteran_match_count).where(PlayerProfile.id == player_id)
+    prof_vet = (await session.execute(prof_stmt)).scalar_one_or_none() or 0
+    return max(db_matches, prof_vet)
+
+
+async def _require_division_and_enrollment(
+    db: AsyncSession, division_id: str, market_id: str, *user_ids: str
+) -> Division:
+    """Ensure division exists in user's market and all specified users are actively enrolled."""
+    div = (
+        await db.execute(
+            select(Division).where(Division.id == division_id, Division.market_id == market_id)
+        )
+    ).scalar_one_or_none()
+    if div is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Division '{division_id}' not found.",
+        )
+    for uid in user_ids:
+        enr = (
+            await db.execute(
+                select(Enrollment).where(
+                    Enrollment.user_id == uid,
+                    Enrollment.division_id == division_id,
+                    Enrollment.status.in_(
+                        [EnrollmentStatus.ACTIVE, EnrollmentStatus.PLACED_IN_DIVISION]
+                    ),
+                )
+            )
+        ).first()
+        if enr is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Both players must be actively enrolled in this division.",
+            )
+    return div
+
+
+async def _assert_is_counterparty(session: AsyncSession, user: User, match: Match) -> None:
+    """Ensure user is the opposing counterparty in a match, not the reporter or an uninvolved player."""
+    if user.id == match.reporter_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the opposing player can confirm or dispute this result.",
+        )
+    prof_id = (
+        await session.execute(select(PlayerProfile.id).where(PlayerProfile.user_id == user.id))
+    ).scalar_one_or_none()
+    if not prof_id or prof_id not in (match.winner_id, match.loser_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the opposing player can confirm or dispute this result.",
+        )
+
+
+async def check_handicap_eligibility_for_players(
+    session: AsyncSession,
+    user: User,
+    opponent_id: str,
+) -> HandicapCheckResponse:
+    """Check handicap scoring eligibility between current player and opponent."""
+    stmt_my = select(PlayerProfile).where(PlayerProfile.user_id == user.id)
+    my_profile = (await session.execute(stmt_my)).scalar_one_or_none()
+    if not my_profile:
+        raise ValueError("User does not have an active player profile.")
+
+    stmt_opp = (
+        select(PlayerProfile)
+        .join(User, PlayerProfile.user_id == User.id)
+        .where(PlayerProfile.id == opponent_id, User.market_id == user.market_id)
+    )
+    opp_profile = (await session.execute(stmt_opp)).scalar_one_or_none()
+    if not opp_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Opponent profile not found.",
+        )
+
+    my_matches = await count_player_confirmed_matches(session, my_profile.id)
+    opp_matches = await count_player_confirmed_matches(session, opp_profile.id)
+
+    my_rating = parse_rating(my_profile.rating)
+    opp_rating = parse_rating(opp_profile.rating)
+
+    eligible, reason, headstart = evaluate_handicap_eligibility(
+        player_a_id=my_profile.id,
+        player_a_rating=my_rating,
+        player_a_matches=my_matches,
+        player_b_id=opp_profile.id,
+        player_b_rating=opp_rating,
+        player_b_matches=opp_matches,
+        min_qualifying_matches=settings.HANDICAP_MIN_MATCHES,
+    )
+
+    lower_name = None
+    if headstart:
+        lower_name = (
+            my_profile.display_name
+            if headstart.lower_rated_player_id == my_profile.id
+            else opp_profile.display_name
+        )
+
+    gap = (
+        round(abs(my_rating - opp_rating), 2)
+        if (my_rating is not None and opp_rating is not None)
+        else 0.0
+    )
+    return HandicapCheckResponse(
+        eligible=eligible,
+        reason=reason,
+        lead=headstart.lead if headstart else None,
+        court=headstart.court if headstart else None,
+        lower_rated_player_id=headstart.lower_rated_player_id if headstart else None,
+        lower_rated_player_name=lower_name,
+        rating_gap=gap,
+        my_match_count=my_matches,
+        opponent_match_count=opp_matches,
+        min_qualifying_matches=settings.HANDICAP_MIN_MATCHES,
+    )
 
 
 def format_sets_summary(sets_data: list[dict], fmt: str) -> str:
@@ -75,29 +219,31 @@ async def submit_match(
     if not reporter_profile:
         raise ValueError("Reporter does not have an active player profile.")
 
-    # 2. Verify opponent exists
+    # 2. Verify opponent exists and is in the same market
     stmt_opp = (
         select(PlayerProfile)
-        .where(PlayerProfile.id == req.opponent_id)
+        .join(User, PlayerProfile.user_id == User.id)
+        .where(PlayerProfile.id == req.opponent_id, User.market_id == reporter_user.market_id)
         .options(selectinload(PlayerProfile.user))
     )
     opponent_profile = (await session.execute(stmt_opp)).scalar_one_or_none()
     if not opponent_profile:
-        raise ValueError("Opponent profile not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Opponent profile not found.",
+        )
 
     if reporter_profile.id == opponent_profile.id:
         raise ValueError("You cannot report a match against yourself.")
 
-    # 3. Verify both players are enrolled in the division
-    enr_stmt = select(Enrollment).where(
-        Enrollment.division_id == req.division_id,
-        Enrollment.user_id.in_([reporter_user.id, opponent_profile.user_id]),
-        Enrollment.status.in_([EnrollmentStatus.ACTIVE, EnrollmentStatus.PLACED_IN_DIVISION]),
+    # 3. Verify division exists in user's market and both players are actively enrolled
+    await _require_division_and_enrollment(
+        session,
+        req.division_id,
+        reporter_user.market_id,
+        reporter_user.id,
+        opponent_profile.user_id,
     )
-    enrollments = (await session.execute(enr_stmt)).scalars().all()
-    if len(enrollments) < 2:
-        # For testing / open divisions, allow if at least reporter is enrolled or division exists
-        pass
 
     # 4. Check rematch limits
     # Query prior head-to-head matches in this division
@@ -198,6 +344,30 @@ async def submit_match(
         else MatchStatus.SUBMITTED
     )
 
+    # Handicap validation if requested
+    handicap_lead = None
+    handicap_recipient_id = None
+    if req.is_handicap:
+        my_matches = await count_player_confirmed_matches(session, reporter_profile.id)
+        opp_matches = await count_player_confirmed_matches(session, opponent_profile.id)
+        my_rating = parse_rating(reporter_profile.rating)
+        opp_rating = parse_rating(opponent_profile.rating)
+
+        eligible, reason, headstart = evaluate_handicap_eligibility(
+            player_a_id=reporter_profile.id,
+            player_a_rating=my_rating,
+            player_a_matches=my_matches,
+            player_b_id=opponent_profile.id,
+            player_b_rating=opp_rating,
+            player_b_matches=opp_matches,
+            min_qualifying_matches=settings.HANDICAP_MIN_MATCHES,
+        )
+        if not eligible or not headstart:
+            raise ValueError(reason or "Handicap scoring requirements not met.")
+
+        handicap_lead = headstart.lead
+        handicap_recipient_id = headstart.lower_rated_player_id
+
     match = Match(
         market_id=reporter_user.market_id,
         division_id=req.division_id,
@@ -208,6 +378,9 @@ async def submit_match(
         sets_json=json.dumps(sets_payload),
         status=match_status,
         reporter_id=reporter_user.id,
+        is_handicap=req.is_handicap,
+        handicap_lead=handicap_lead,
+        handicap_recipient_id=handicap_recipient_id,
         played_at=now_utc,
     )
     session.add(match)
@@ -220,8 +393,17 @@ async def submit_match(
         entity_id=match.id,
         actor_id=reporter_user.id,
         action="match_reported",
-        reason=f"Reported score: {format_sets_summary(sets_payload, req.format)}",
-        changes_json=json.dumps({"status": match_status, "outcome": req.outcome_type}),
+        reason=f"Reported score: {format_sets_summary(sets_payload, req.format)}"
+        + (f" [Handicap: {handicap_lead}]" if req.is_handicap else ""),
+        changes_json=json.dumps(
+            {
+                "status": match_status,
+                "outcome": req.outcome_type,
+                "is_handicap": req.is_handicap,
+                "handicap_lead": handicap_lead,
+                "handicap_recipient_id": handicap_recipient_id,
+            }
+        ),
     )
     session.add(audit)
 
@@ -244,11 +426,19 @@ async def confirm_match(session: AsyncSession, user: User, match_id: str) -> Mat
     res = await session.execute(select(Match).where(Match.id == match_id))
     match = res.scalar_one_or_none()
 
-    if not match:
-        raise ValueError("Match not found.")
+    if not match or match.market_id != user.market_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Match not found.",
+        )
+
+    await _assert_is_counterparty(session, user, match)
 
     if match.status != MatchStatus.SUBMITTED:
-        raise ValueError(f"Match cannot be confirmed from status '{match.status}'.")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Match cannot be confirmed from status '{match.status}'.",
+        )
 
     match.status = MatchStatus.CONFIRMED
     await session.flush()
@@ -274,8 +464,19 @@ async def dispute_match(session: AsyncSession, user: User, match_id: str, reason
     res = await session.execute(select(Match).where(Match.id == match_id))
     match = res.scalar_one_or_none()
 
-    if not match:
-        raise ValueError("Match not found.")
+    if not match or match.market_id != user.market_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Match not found.",
+        )
+
+    await _assert_is_counterparty(session, user, match)
+
+    if match.status != MatchStatus.SUBMITTED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Match cannot be disputed from status '{match.status}'.",
+        )
 
     match.status = MatchStatus.DISPUTED
     cooling_off = datetime.now(UTC) + timedelta(hours=settings.dispute_cooling_off_hours)
@@ -313,25 +514,22 @@ async def recalculate_division_standings(session: AsyncSession, division_id: str
     )
     matches = (await session.execute(matches_stmt)).scalars().all()
 
-    # 2. Fetch all enrolled players in this division
+    # 2. Fetch division to inspect policy settings
+    div_res = await session.execute(select(Division).where(Division.id == division_id))
+    division = div_res.scalar_one_or_none()
+
+    # 3. Fetch all actively enrolled players in this division
     players_stmt = (
         select(PlayerProfile)
         .join(Enrollment, Enrollment.user_id == PlayerProfile.user_id)
-        .where(Enrollment.division_id == division_id)
+        .where(
+            Enrollment.division_id == division_id,
+            Enrollment.status.in_([EnrollmentStatus.ACTIVE, EnrollmentStatus.PLACED_IN_DIVISION]),
+        )
     )
     players = (await session.execute(players_stmt)).scalars().all()
 
-    if not players:
-        # If no players explicitly linked by enrollment, collect distinct player IDs from matches
-        player_ids = set()
-        for m in matches:
-            player_ids.add(m.winner_id)
-            player_ids.add(m.loser_id)
-        if player_ids:
-            players_stmt2 = select(PlayerProfile).where(PlayerProfile.id.in_(player_ids))
-            players = (await session.execute(players_stmt2)).scalars().all()
-
-    # 3. Aggregate records per player
+    # 4. Aggregate records per player
     domain_rows: list[DomainStandingRow] = []
 
     for p in players:
@@ -371,14 +569,32 @@ async def recalculate_division_standings(session: AsyncSession, division_id: str
             )
         )
 
-    # 4. Run pure domain engine
+    # 5. Run pure domain engine using division's rules if configured, falling back to global settings
+    playoff_min_wins = (
+        division.playoff_min_wins
+        if division and division.playoff_min_wins is not None
+        else settings.playoff_min_wins
+    )
+    new_player_min_matches = (
+        division.new_player_min_matches
+        if division and division.new_player_min_matches is not None
+        else settings.new_player_min_matches
+    )
     rules = DivisionRules(
-        playoff_min_wins=settings.playoff_min_wins,
-        new_player_min_matches=settings.new_player_min_matches,
+        playoff_min_wins=playoff_min_wins,
+        new_player_min_matches=new_player_min_matches,
     )
     ranked = compute_standings(domain_rows, rules=rules)
 
-    # 5. Persist to standing_rows table
+    # 6. Delete stale standing rows for players no longer actively enrolled
+    ranked_player_ids = {r.player_id for r in ranked}
+    existing_rows_stmt = select(StandingRowModel).where(StandingRowModel.division_id == division_id)
+    existing_rows = (await session.execute(existing_rows_stmt)).scalars().all()
+    for row in existing_rows:
+        if row.player_id not in ranked_player_ids:
+            await session.delete(row)
+
+    # 7. Persist updated rows to standing_rows table
     for r in ranked:
         row_stmt = select(StandingRowModel).where(
             StandingRowModel.division_id == division_id,
@@ -400,6 +616,18 @@ async def recalculate_division_standings(session: AsyncSession, division_id: str
         existing.distinct_opponents = r.distinct_opponents
         existing.is_playoff_eligible = r.is_playoff_eligible
         existing.playoff_indicator = r.playoff_indicator
+
+    # 8. Record audit log for standings recalculation
+    session.add(
+        AuditLog(
+            market_id=division.market_id if division else settings.DEFAULT_MARKET_ID,
+            entity_type="division",
+            entity_id=division_id,
+            actor_id="system",
+            action="standings.recalculate",
+            reason=f"Recalculated standings for division {division_id}",
+        )
+    )
 
     await session.flush()
 
@@ -444,34 +672,48 @@ async def get_division_roster(
                 rating=profile.rating,
                 home_area=profile.home_area,
                 is_daytime=profile.is_daytime,
+                gender=profile.gender,
+                birth_year=profile.birth_year,
+                favorite_link=profile.favorite_link if not profile.is_anonymized else None,
+                game_description=profile.game_description if not profile.is_anonymized else None,
+                about_me=profile.about_me if not profile.is_anonymized else None,
             )
         )
     return roster
 
 
 async def get_latest_scores_feed(
-    session: AsyncSession, limit: int = 20
+    session: AsyncSession, market_id: str | None = None, limit: int = 20
 ) -> list[LatestScoreFeedItem]:
-    """Retrieve market-wide latest verified match results feed."""
+    """Retrieve market-wide latest verified match results feed without N+1 queries."""
+    target_market_id = market_id or settings.DEFAULT_MARKET_ID
     stmt = (
         select(Match)
-        .where(Match.status == MatchStatus.CONFIRMED)
+        .where(Match.status == MatchStatus.CONFIRMED, Match.market_id == target_market_id)
         .order_by(Match.played_at.desc())
         .limit(limit)
     )
     matches = (await session.execute(stmt)).scalars().all()
+    if not matches:
+        return []
+
+    # Bulk load player names and division names to avoid N+1 queries
+    player_ids = {m.winner_id for m in matches} | {m.loser_id for m in matches}
+    division_ids = {m.division_id for m in matches}
+
+    prof_stmt = select(PlayerProfile).where(PlayerProfile.id.in_(player_ids))
+    profs = (await session.execute(prof_stmt)).scalars().all()
+    prof_map = {p.id: p.display_name for p in profs}
+
+    div_stmt = select(Division).where(Division.id.in_(division_ids))
+    divs = (await session.execute(div_stmt)).scalars().all()
+    div_map = {d.id: d.name for d in divs}
 
     feed_items = []
     for m in matches:
-        # Load player names
-        w_stmt = select(PlayerProfile.display_name).where(PlayerProfile.id == m.winner_id)
-        winner_name = (await session.execute(w_stmt)).scalar_one_or_none() or "Winner"
-
-        l_stmt = select(PlayerProfile.display_name).where(PlayerProfile.id == m.loser_id)
-        loser_name = (await session.execute(l_stmt)).scalar_one_or_none() or "Opponent"
-
-        d_stmt = select(Division.name).where(Division.id == m.division_id)
-        div_name = (await session.execute(d_stmt)).scalar_one_or_none() or "Competitive Division"
+        winner_name = prof_map.get(m.winner_id, "Winner")
+        loser_name = prof_map.get(m.loser_id, "Opponent")
+        div_name = div_map.get(m.division_id, "Competitive Division")
 
         sets = json.loads(m.sets_json)
         score_line = format_sets_summary(sets, m.format)
@@ -490,6 +732,8 @@ async def get_latest_scores_feed(
                 score_line=score_line,
                 division_name=div_name,
                 date_str=date_str,
+                is_handicap=m.is_handicap,
+                handicap_lead=m.handicap_lead,
             )
         )
     return feed_items

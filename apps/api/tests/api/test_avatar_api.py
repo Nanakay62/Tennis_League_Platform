@@ -14,7 +14,7 @@ async def get_test_auth_headers(
         "password": "SecurePassword123!",
         "display_name": "Avatar Tester",
         "rating": "4.0",
-        "home_area": "Bornheim",
+        "home_area": "Accra",
     }
     res = await client.post("/auth/register", json=payload)
     token = res.json()["access_token"]

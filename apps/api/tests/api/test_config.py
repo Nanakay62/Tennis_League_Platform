@@ -1,5 +1,7 @@
 """Tests for application settings validation and security assertions."""
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -60,3 +62,21 @@ def test_cors_origins_comma_separated():
 def test_cors_origins_json_array():
     settings = Settings(CORS_ORIGINS='["https://frontend.vercel.app", "https://custom.domain.com"]')
     assert settings.CORS_ORIGINS == ["https://frontend.vercel.app", "https://custom.domain.com"]
+
+
+def test_no_legacy_ids_or_frankfurt_content():
+    apps_dir = Path(__file__).resolve().parents[3]
+    banned = ["div-comp-1", "div-skilled-1", "Sachsenhausen", "Frankfurt", "frankfurt"]
+    hits = [
+        (str(p), b)
+        for p in apps_dir.rglob("*")
+        if p.is_file()
+        and p.suffix in {".py", ".ts", ".tsx", ".md"}
+        and ".venv" not in p.parts
+        and "node_modules" not in p.parts
+        and ".hypothesis" not in p.parts
+        and p.name != Path(__file__).name
+        for b in banned
+        if b in p.read_text(errors="ignore")
+    ]
+    assert hits == []

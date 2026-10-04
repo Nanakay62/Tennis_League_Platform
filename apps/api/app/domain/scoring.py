@@ -106,3 +106,94 @@ def validate_result(
         )
 
     return errors
+
+
+@dataclass(frozen=True)
+class HandicapHeadStart:
+    lead: str  # "15-0" or "30-0"
+    court: str  # "Ad court" or "Deuce court"
+    lower_rated_player_id: str
+    rating_gap: float
+    tiebreak_rule: str = "7-point tiebreak at 6-6 (starts 0-0)"
+
+
+def calculate_handicap_headstart(
+    player_a_id: str,
+    player_a_rating: float | None,
+    player_b_id: str,
+    player_b_rating: float | None,
+) -> HandicapHeadStart | None:
+    """Calculate the starting point lead and serve court based on rating gap.
+
+    Gap <= 0.5: no handicap (returns None).
+    Gap > 0.5 and < 1.0: 15-0 lead, serve starts on Ad court.
+    Gap >= 1.0: 30-0 lead, serve starts on Deuce court.
+    """
+    if player_a_rating is None or player_b_rating is None:
+        return None
+
+    gap = round(abs(player_a_rating - player_b_rating), 2)
+    if gap <= 0.5:
+        return None
+
+    lower_id = player_a_id if player_a_rating < player_b_rating else player_b_id
+    if gap >= 1.0:
+        return HandicapHeadStart(
+            lead="30-0",
+            court="Deuce court",
+            lower_rated_player_id=lower_id,
+            rating_gap=gap,
+        )
+
+    return HandicapHeadStart(
+        lead="15-0",
+        court="Ad court",
+        lower_rated_player_id=lower_id,
+        rating_gap=gap,
+    )
+
+
+def evaluate_handicap_eligibility(
+    player_a_id: str,
+    player_a_rating: float | None,
+    player_a_matches: int,
+    player_b_id: str,
+    player_b_rating: float | None,
+    player_b_matches: int,
+    min_qualifying_matches: int = 6,
+) -> tuple[bool, str | None, HandicapHeadStart | None]:
+    """Validate whether two players are eligible for Handicap Scoring.
+
+    1. Both players must have an assigned rating.
+    2. Both players must have at least min_qualifying_matches on this platform.
+    3. Rating difference must exceed 0.5.
+    Returns:
+        (True, None, head_start) if eligible.
+        (False, reason, None) if ineligible.
+    """
+    if player_a_rating is None or player_b_rating is None:
+        return (
+            False,
+            "Both players must have an assigned rating to qualify for Handicap Scoring (rating not available).",
+            None,
+        )
+
+    if player_a_matches < min_qualifying_matches or player_b_matches < min_qualifying_matches:
+        return (
+            False,
+            f"Both players must have played at least {min_qualifying_matches} confirmed matches on this platform to qualify for Handicap Scoring.",
+            None,
+        )
+
+    gap = round(abs(player_a_rating - player_b_rating), 2)
+    if gap <= 0.5:
+        return (
+            False,
+            f"Rating difference must be greater than 0.5 to qualify for Handicap Scoring (current gap: {gap:.2f}).",
+            None,
+        )
+
+    head_start = calculate_handicap_headstart(
+        player_a_id, player_a_rating, player_b_id, player_b_rating
+    )
+    return True, None, head_start

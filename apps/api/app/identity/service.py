@@ -34,6 +34,7 @@ async def get_or_create_default_market(session: AsyncSession) -> Market:
     market = res.scalar_one_or_none()
     if not market:
         market = Market(
+            id=settings.DEFAULT_MARKET_ID,
             name="Accra",
             slug="accra",
             timezone="Africa/Accra",
@@ -86,6 +87,11 @@ async def register_user(
         rating=req.rating,
         home_area=req.home_area,
         is_daytime=req.is_daytime,
+        gender=req.gender or "unspecified",
+        birth_year=req.birth_year,
+        favorite_link=req.favorite_link,
+        game_description=req.game_description,
+        about_me=req.about_me,
     )
     session.add(profile)
 
@@ -222,6 +228,20 @@ async def update_player_profile(
         profile.home_area = updates.home_area
     if updates.is_daytime is not None:
         profile.is_daytime = updates.is_daytime
+    if updates.gender is not None:
+        profile.gender = updates.gender
+    if updates.birth_year is not None:
+        profile.birth_year = updates.birth_year
+    if updates.favorite_link is not None:
+        profile.favorite_link = (
+            updates.favorite_link.strip() if updates.favorite_link.strip() else None
+        )
+    if updates.game_description is not None:
+        profile.game_description = (
+            updates.game_description.strip() if updates.game_description.strip() else None
+        )
+    if updates.about_me is not None:
+        profile.about_me = updates.about_me.strip() if updates.about_me.strip() else None
     if updates.avatar_url is not None:
         old_avatar = profile.avatar_url
         if old_avatar and old_avatar != updates.avatar_url:
@@ -280,9 +300,16 @@ async def delete_and_anonymize_user(session: AsyncSession, user_id: str) -> None
     if user.profile:
         user.profile.display_name = "Former Player"
         user.profile.phone = ""
-        user.profile.home_area = ""
+        # home_area is city-level ('Accra' or 'Tema') required by ck_player_profiles_home_area
+        if user.profile.home_area not in ("Accra", "Tema"):
+            user.profile.home_area = "Accra"
         user.profile.is_anonymized = True
         user.profile.avatar_url = None
+        user.profile.gender = "unspecified"
+        user.profile.birth_year = None
+        user.profile.favorite_link = None
+        user.profile.game_description = None
+        user.profile.about_me = None
 
     # Revoke all refresh tokens
     for token in user.refresh_tokens:

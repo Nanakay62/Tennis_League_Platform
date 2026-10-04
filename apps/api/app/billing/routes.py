@@ -18,6 +18,7 @@ from app.billing.schemas import (
     QuoteResponse,
 )
 from app.billing.service import (
+    CheckoutError,
     create_checkout_order,
     fulfill_paystack_payment,
     fulfill_stripe_checkout,
@@ -26,7 +27,7 @@ from app.billing.service import (
 from app.config import get_settings
 from app.db import get_db
 from app.identity.deps import get_current_user
-from app.identity.models import User
+from app.identity.models import User, UserRole
 
 settings = get_settings()
 router = APIRouter(tags=["billing"])
@@ -38,7 +39,11 @@ async def quote_cart_endpoint(
     session: AsyncSession = Depends(get_db),
 ):
     """Calculate exact server-side pricing quote with tier rules and discounts."""
-    quote = await get_cart_quote(session, user_id=None, program_ids=req.program_ids)
+    try:
+        quote = await get_cart_quote(session, user_id=None, program_ids=req.program_ids)
+    except CheckoutError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
     return QuoteResponse(
         items=[
             QuoteItemResponse(
@@ -63,13 +68,18 @@ async def create_checkout_session(
     session: AsyncSession = Depends(get_db),
 ):
     """Create a new pending order and Paystack/Stripe Checkout Session."""
-    order, checkout_url, session_id = await create_checkout_order(
-        session=session,
-        user_id=user.id,
-        market_id=user.market_id,
-        req=req,
-        user_email=user.email,
-    )
+    try:
+        order, checkout_url, session_id = await create_checkout_order(
+            session=session,
+            user_id=user.id,
+            market_id=user.market_id,
+            req=req,
+            user_email=user.email,
+            user=user,
+        )
+    except CheckoutError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
     return CheckoutSessionResponse(
         order_id=order.id,
         checkout_url=checkout_url,
@@ -83,15 +93,20 @@ async def stripe_webhook(
     stripe_signature: str | None = Header(default=None),
     session: AsyncSession = Depends(get_db),
 ):
-    """Handle Stripe payment webhooks idempotently."""
+    """Handle Stripe payment webhooks idempotently with strict signature verification."""
     payload_bytes = await request.body()
 
-    has_real_secret = bool(
-        settings.STRIPE_WEBHOOK_SECRET
-        and not settings.STRIPE_WEBHOOK_SECRET.startswith("whsec_placeholder")
-    )
-
-    if has_real_secret:
+    if settings.ALLOW_UNSIGNED_WEBHOOKS:
+        if settings.ENVIRONMENT in ("production", "staging"):
+            raise HTTPException(
+                status_code=500,
+                detail="ALLOW_UNSIGNED_WEBHOOKS cannot be enabled in production or staging.",
+            )
+        try:
+            data = json.loads(payload_bytes)
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    else:
         if not stripe_signature:
             raise HTTPException(status_code=400, detail="Missing stripe-signature header")
         try:
@@ -103,15 +118,6 @@ async def stripe_webhook(
             data = event
         except (stripe.error.SignatureVerificationError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Invalid webhook signature: {e}")
-    else:
-        if settings.ENVIRONMENT == "production":
-            raise HTTPException(
-                status_code=500, detail="STRIPE_WEBHOOK_SECRET must be configured in production."
-            )
-        try:
-            data = json.loads(payload_bytes)
-        except (json.JSONDecodeError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     event_id = data.get("id")
     event_type = data.get("type")
@@ -123,6 +129,8 @@ async def stripe_webhook(
         session_obj = data.get("data", {}).get("object", {})
         session_id = session_obj.get("id")
         payment_intent_id = session_obj.get("payment_intent")
+        amount_total = session_obj.get("amount_total")
+        currency = session_obj.get("currency")
 
         if session_id:
             await fulfill_stripe_checkout(
@@ -130,6 +138,8 @@ async def stripe_webhook(
                 event_id=event_id,
                 session_id=session_id,
                 payment_intent_id=payment_intent_id,
+                amount=amount_total,
+                currency=currency,
             )
 
     return {"status": "success"}
@@ -144,29 +154,11 @@ async def paystack_webhook(
     """Handle Paystack payment webhooks idempotently with HMAC-SHA512 verification."""
     payload_bytes = await request.body()
 
-    has_real_secret = bool(
-        settings.PAYSTACK_SECRET_KEY
-        and not settings.PAYSTACK_SECRET_KEY.startswith("sk_test_paystack_placeholder")
-    )
-
-    if has_real_secret:
-        if not x_paystack_signature:
-            raise HTTPException(status_code=400, detail="Missing x-paystack-signature header")
-        computed_sig = hmac.new(
-            settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
-            payload_bytes,
-            hashlib.sha512,
-        ).hexdigest()
-        if not hmac.compare_digest(computed_sig, x_paystack_signature):
-            raise HTTPException(status_code=400, detail="Invalid webhook signature")
-        try:
-            data = json.loads(payload_bytes)
-        except (json.JSONDecodeError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    else:
-        if settings.ENVIRONMENT == "production":
+    if settings.ALLOW_UNSIGNED_WEBHOOKS:
+        if settings.ENVIRONMENT in ("production", "staging"):
             raise HTTPException(
-                status_code=500, detail="PAYSTACK_SECRET_KEY must be configured in production."
+                status_code=500,
+                detail="ALLOW_UNSIGNED_WEBHOOKS cannot be enabled in production or staging.",
             )
         if x_paystack_signature:
             computed_sig = hmac.new(
@@ -176,6 +168,20 @@ async def paystack_webhook(
             ).hexdigest()
             if not hmac.compare_digest(computed_sig, x_paystack_signature):
                 raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        try:
+            data = json.loads(payload_bytes)
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    else:
+        if not x_paystack_signature:
+            raise HTTPException(status_code=400, detail="Missing x-paystack-signature header")
+        computed_sig = hmac.new(
+            settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
+            payload_bytes,
+            hashlib.sha512,
+        ).hexdigest()
+        if not hmac.compare_digest(computed_sig, x_paystack_signature):
+            raise HTTPException(status_code=400, detail="Invalid webhook signature")
         try:
             data = json.loads(payload_bytes)
         except (json.JSONDecodeError, ValueError):
@@ -205,6 +211,8 @@ async def paystack_webhook(
             status="success",
             gateway_response=event_data.get("gateway_response"),
             channel=event_data.get("channel"),
+            amount=event_data.get("amount"),
+            currency=event_data.get("currency"),
         )
     elif event_type in ("charge.failed", "charge.cancelled"):
         await fulfill_paystack_payment(
@@ -214,6 +222,8 @@ async def paystack_webhook(
             status="failed",
             gateway_response=event_data.get("gateway_response", "Transaction failed"),
             channel=event_data.get("channel"),
+            amount=event_data.get("amount"),
+            currency=event_data.get("currency"),
         )
 
     return {"status": "success"}
@@ -222,18 +232,24 @@ async def paystack_webhook(
 @router.get("/orders/{order_id}", response_model=OrderResponse)
 async def get_order_status(
     order_id: str,
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ):
     """Retrieve order status and item lines for checkout result polling."""
     stmt = (
         select(Order)
-        .where(or_(Order.id == order_id, Order.stripe_session_id == order_id))
+        .where(
+            or_(Order.id == order_id, Order.stripe_session_id == order_id),
+            Order.market_id == user.market_id,
+        )
         .options(selectinload(Order.items))
     )
     res = await session.execute(stmt)
     order = res.scalar_one_or_none()
 
-    if not order:
+    if not order or (
+        order.user_id != user.id and user.role not in (UserRole.MARKET_ADMIN, UserRole.SUPER_ADMIN)
+    ):
         raise HTTPException(status_code=404, detail="Order not found")
 
     return OrderResponse(

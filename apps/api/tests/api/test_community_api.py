@@ -10,7 +10,7 @@ from app.identity.service import get_or_create_default_market
 
 @pytest.mark.asyncio
 async def test_partner_matching_within_rating_band(client: AsyncClient, db_session: AsyncSession):
-    # 1. Register base user (3.5 in Sachsenhausen)
+    # 1. Register base user (3.5 in Accra)
     res0 = await client.post(
         "/auth/register",
         json={
@@ -18,7 +18,7 @@ async def test_partner_matching_within_rating_band(client: AsyncClient, db_sessi
             "password": "Password123!",
             "display_name": "Base Player",
             "rating": "3.5",
-            "home_area": "Sachsenhausen",
+            "home_area": "Accra",
             "is_daytime": True,
         },
     )
@@ -34,7 +34,7 @@ async def test_partner_matching_within_rating_band(client: AsyncClient, db_sessi
             "password": "Password123!",
             "display_name": "Candidate 3.0",
             "rating": "3.0",
-            "home_area": "Sachsenhausen",
+            "home_area": "Accra",
             "is_daytime": True,
         },
     )
@@ -48,7 +48,7 @@ async def test_partner_matching_within_rating_band(client: AsyncClient, db_sessi
             "password": "Password123!",
             "display_name": "Candidate 5.0",
             "rating": "5.0",
-            "home_area": "Westend",
+            "home_area": "Accra",
             "is_daytime": False,
         },
     )
@@ -148,6 +148,48 @@ async def test_courts_directory_and_reviews(client: AsyncClient, db_session: Asy
     assert updated_detail["average_rating"] == 5.0
     assert len(updated_detail["reviews"]) == 1
 
+    # 8. Upsert review (user posts second review for same court -> updates existing, count remains 1)
+    review_res2 = await client.post(
+        f"/courts/{c1.id}/reviews",
+        json={"rating": 4, "comment": "Updated review - still great!"},
+        headers=headers,
+    )
+    assert review_res2.status_code == 201
+    updated_res2 = await client.get(f"/courts/{c1.id}")
+    updated_detail2 = updated_res2.json()
+    assert updated_detail2["review_count"] == 1
+    assert updated_detail2["average_rating"] == 4.0
+    assert updated_detail2["reviews"][0]["comment"] == "Updated review - still great!"
+
+    # 9. Market scoping: Court in another market should return 404
+    from app.markets.models import Market
+
+    foreign_market = Market(
+        id="market-berlin",
+        name="Berlin",
+        slug="berlin",
+        timezone="Europe/Berlin",
+        currency="EUR",
+    )
+    db_session.add(foreign_market)
+    await db_session.flush()
+
+    foreign_court = Court(
+        market_id=foreign_market.id,
+        name="Berlin Tennis Club",
+        slug="berlin-tennis-club",
+        address="Berliner Str 1",
+        postal_code="10115",
+        city="Berlin",
+        num_courts=6,
+        surface="clay",
+    )
+    db_session.add(foreign_court)
+    await db_session.commit()
+
+    foreign_detail_res = await client.get(f"/courts/{foreign_court.id}")
+    assert foreign_detail_res.status_code == 404
+
 
 @pytest.mark.asyncio
 async def test_referral_info_and_poty_endpoints(client: AsyncClient, db_session: AsyncSession):
@@ -170,8 +212,140 @@ async def test_referral_info_and_poty_endpoints(client: AsyncClient, db_session:
     assert "referral_code" in ref_data
     assert "referral_link" in ref_data
     assert ref_data["reward_credit_cents"] == 500
+    # Privacy check: referral code must NOT contain email or user's email username
+    assert "referral_user" not in ref_data["referral_code"].lower()
+    assert ref_data["referral_code"].startswith("TENNIS-")
+    assert len(ref_data["referral_code"]) == 15
+    assert ref_data["referral_code"].isupper()
 
     # 3. Query GET /community/poty
     poty_res = await client.get("/community/poty")
     assert poty_res.status_code == 200
     assert isinstance(poty_res.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_partner_matching_isolates_accra_and_tema(
+    client: AsyncClient, db_session: AsyncSession
+):
+    """Verify Accra players do not receive Tema candidates and vice versa."""
+    # Register Accra player
+    res_accra = await client.post(
+        "/auth/register",
+        json={
+            "email": "accra_player@example.com",
+            "password": "Password123!",
+            "display_name": "Accra Player",
+            "rating": "3.5",
+            "home_area": "Accra",
+            "is_daytime": True,
+        },
+    )
+    assert res_accra.status_code == 201
+    token_accra = res_accra.json()["access_token"]
+
+    # Register compatible partner in Accra
+    res_accra_peer = await client.post(
+        "/auth/register",
+        json={
+            "email": "accra_peer@example.com",
+            "password": "Password123!",
+            "display_name": "Accra Peer",
+            "rating": "3.5",
+            "home_area": "Accra",
+            "is_daytime": True,
+        },
+    )
+    assert res_accra_peer.status_code == 201
+
+    # Register compatible partner in Tema (same rating 3.5, but different city)
+    res_tema_peer = await client.post(
+        "/auth/register",
+        json={
+            "email": "tema_peer@example.com",
+            "password": "Password123!",
+            "display_name": "Tema Peer",
+            "rating": "3.5",
+            "home_area": "Tema",
+            "is_daytime": True,
+        },
+    )
+    assert res_tema_peer.status_code == 201
+
+    # Query partners for Accra player
+    partners_res = await client.get("/partners", headers={"Authorization": f"Bearer {token_accra}"})
+    assert partners_res.status_code == 200
+    matched_names = [p["display_name"] for p in partners_res.json()]
+
+    assert "Accra Peer" in matched_names
+    assert "Tema Peer" not in matched_names
+
+
+@pytest.mark.asyncio
+async def test_partner_matching_contacts_gated_by_active_enrollment(
+    client: AsyncClient, db_session: AsyncSession, seeded_catalog: None
+):
+    """Rule 5 applies: contacts (phone/email) are visible only if requester has an active enrollment."""
+    from sqlalchemy import select
+
+    from app.identity.models import User
+    from app.leagues.models import Enrollment, EnrollmentStatus
+
+    # 1. Register candidate partner
+    await client.post(
+        "/auth/register",
+        json={
+            "email": "candidate_contact@example.com",
+            "password": "Password123!",
+            "display_name": "Candidate With Contact",
+            "phone": "+233 24 111 2222",
+            "rating": "3.5",
+            "home_area": "Accra",
+        },
+    )
+
+    # 2. Register requester (initially not enrolled)
+    req_res = await client.post(
+        "/auth/register",
+        json={
+            "email": "requester_player@example.com",
+            "password": "Password123!",
+            "display_name": "Requester Player",
+            "phone": "+233 24 333 4444",
+            "rating": "3.5",
+            "home_area": "Accra",
+        },
+    )
+    req_token = req_res.json()["access_token"]
+    req_headers = {"Authorization": f"Bearer {req_token}"}
+
+    # Query before enrollment: contacts must be None
+    res1 = await client.get("/partners", headers=req_headers)
+    assert res1.status_code == 200
+    p1 = next((p for p in res1.json() if p["display_name"] == "Candidate With Contact"), None)
+    assert p1 is not None
+    assert p1["phone"] is None
+    assert p1["email"] is None
+
+    # 3. Enroll requester actively in a division
+    req_user = (
+        await db_session.execute(select(User).where(User.email == "requester_player@example.com"))
+    ).scalar_one()
+
+    enr = Enrollment(
+        market_id=req_user.market_id,
+        user_id=req_user.id,
+        program_id="prog-accra-fall-2026",
+        division_id="div-accra-comp-1",
+        status=EnrollmentStatus.ACTIVE,
+    )
+    db_session.add(enr)
+    await db_session.commit()
+
+    # Query after enrollment: contacts must now be visible
+    res2 = await client.get("/partners", headers=req_headers)
+    assert res2.status_code == 200
+    p2 = next((p for p in res2.json() if p["display_name"] == "Candidate With Contact"), None)
+    assert p2 is not None
+    assert p2["phone"] == "+233 24 111 2222"
+    assert p2["email"] == "candidate_contact@example.com"

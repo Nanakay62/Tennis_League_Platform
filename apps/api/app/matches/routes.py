@@ -8,12 +8,14 @@ from app.identity.deps import get_current_user
 from app.identity.models import User
 from app.matches.schemas import (
     DisputeMatchRequest,
+    HandicapCheckResponse,
     LatestScoreFeedItem,
     MatchResponse,
     RosterPlayerResponse,
     SubmitMatchRequest,
 )
 from app.matches.service import (
+    check_handicap_eligibility_for_players,
     confirm_match,
     dispute_match,
     get_division_roster,
@@ -22,6 +24,19 @@ from app.matches.service import (
 )
 
 router = APIRouter(tags=["matches"])
+
+
+@router.get("/matches/handicap-check", response_model=HandicapCheckResponse)
+async def check_handicap_eligibility_route(
+    opponent_id: str = Query(...),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    """Check handicap eligibility and compute headstart between current user and opponent."""
+    try:
+        return await check_handicap_eligibility_for_players(session, user, opponent_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/matches", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
@@ -47,6 +62,9 @@ async def report_match(
             sets_summary=sets_summary,
             status=match.status,
             played_at=match.played_at.isoformat(),
+            is_handicap=match.is_handicap,
+            handicap_lead=match.handicap_lead,
+            handicap_recipient_id=match.handicap_recipient_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -96,8 +114,9 @@ async def list_division_roster(
 
 @router.get("/scores/latest", response_model=list[LatestScoreFeedItem])
 async def latest_scores_feed(
+    market_id: str | None = Query(default=None),
     limit: int = Query(default=20, le=50),
     session: AsyncSession = Depends(get_db),
 ):
     """Retrieve public market-wide feed of latest confirmed match scores."""
-    return await get_latest_scores_feed(session, limit=limit)
+    return await get_latest_scores_feed(session, market_id=market_id, limit=limit)

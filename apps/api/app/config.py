@@ -20,9 +20,14 @@ class Settings(BaseSettings):
     DEBUG: bool = False  # Must remain False in production — enables stack trace leakage if True
 
     # Market Defaults
+    DEFAULT_MARKET_ID: str = "mkt-accra"
     DEFAULT_MARKET_NAME: str = "Accra"
     DEFAULT_MARKET_TIMEZONE: str = "Africa/Accra"
     DEFAULT_MARKET_CURRENCY: str = "GHS"
+
+    # Seeding
+    SEED_DEMO_DATA: bool = False
+    SEED_DEMO_PASSWORD: str = "Password123!"
 
     # Persistence
     DATABASE_URL: str = "postgresql+psycopg://league:league@localhost:5432/league"
@@ -43,6 +48,9 @@ class Settings(BaseSettings):
     PAYSTACK_SECRET_KEY: str = "sk_test_paystack_placeholder"
     PAYSTACK_PUBLIC_KEY: str = "pk_test_paystack_placeholder"
     PAYSTACK_API_BASE_URL: str = "https://api.paystack.co"
+
+    # Webhook Security
+    ALLOW_UNSIGNED_WEBHOOKS: bool = False  # Strict verification by default in ALL environments
 
     # CORS & Client
     CORS_ORIGINS: list[str] | str = [
@@ -104,7 +112,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
-        """Strict production assertions ensuring no insecure keys or debug mode in production."""
+        """Strict production assertions ensuring no insecure keys, unsigned webhooks, or debug mode in production."""
+        if self.ENVIRONMENT in ("production", "staging") and self.ALLOW_UNSIGNED_WEBHOOKS:
+            raise ValueError("ALLOW_UNSIGNED_WEBHOOKS must be False in production and staging.")
         if self.ENVIRONMENT == "production":
             if self.DEBUG:
                 raise ValueError("DEBUG must be False in production.")
@@ -121,6 +131,7 @@ class Settings(BaseSettings):
     playoff_min_wins: int = 5
     playoff_women_min_wins: int = 4
     new_player_min_matches: int = 6
+    rating_qualification_min_matches: int = 6
     late_cancel_hours: int = 4
     no_show_wait_minutes: int = 20
     no_show_strikes: int = 2
@@ -133,6 +144,7 @@ class Settings(BaseSettings):
     auto_confirm_match_hours: int = 48
     dispute_cooling_off_hours: int = 24
     inactive_nudge_days: int = 7
+    HANDICAP_MIN_MATCHES: int = 6
 
 
 @lru_cache

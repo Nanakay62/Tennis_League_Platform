@@ -134,6 +134,11 @@ async def get_me(user: User = Depends(get_current_user)):
             veteran_match_count=user.profile.veteran_match_count,
             is_anonymized=user.profile.is_anonymized,
             avatar_url=user.profile.avatar_url,
+            gender=user.profile.gender,
+            birth_year=user.profile.birth_year,
+            favorite_link=user.profile.favorite_link,
+            game_description=user.profile.game_description,
+            about_me=user.profile.about_me,
         )
 
     return UserResponse(
@@ -223,6 +228,11 @@ async def update_profile(
         veteran_match_count=profile.veteran_match_count,
         is_anonymized=profile.is_anonymized,
         avatar_url=profile.avatar_url,
+        gender=profile.gender,
+        birth_year=profile.birth_year,
+        favorite_link=profile.favorite_link,
+        game_description=profile.game_description,
+        about_me=profile.about_me,
     )
 
 

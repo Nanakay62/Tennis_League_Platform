@@ -12,7 +12,7 @@ async def test_register_user_success(client: AsyncClient):
         "display_name": "Lukas Becker",
         "phone": "+49 69 123456",
         "rating": "3.5",
-        "home_area": "Sachsenhausen",
+        "home_area": "Accra",
         "is_daytime": True,
         "market_slug": "accra",
     }
@@ -98,7 +98,7 @@ async def test_get_me_and_update_profile(client: AsyncClient):
         "email": "profile_user@example.com",
         "password": "Password123!",
         "display_name": "Felix Fischer",
-        "home_area": "Bornheim",
+        "home_area": "Accra",
     }
     reg_res = await client.post("/auth/register", json=payload)
     token = reg_res.json()["access_token"]
@@ -110,7 +110,7 @@ async def test_get_me_and_update_profile(client: AsyncClient):
     data = me_res.json()
     assert data["email"] == "profile_user@example.com"
     assert data["profile"]["display_name"] == "Felix Fischer"
-    assert data["profile"]["home_area"] == "Bornheim"
+    assert data["profile"]["home_area"] == "Accra"
 
     # PATCH /me/profile
     patch_res = await client.patch(

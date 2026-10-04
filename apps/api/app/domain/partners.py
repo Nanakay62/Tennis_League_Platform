@@ -37,10 +37,12 @@ def filter_and_rank_partners(
     candidates: list[CandidatePartner],
     max_rating_diff: float = 0.5,
     limit: int = 20,
+    strict_home_area: bool = True,
 ) -> list[CandidatePartner]:
     """Filter candidates within ±0.5 NTRP skill rating, scoring by proximity and schedule compatibility.
 
     Caps results to top candidates (default 20).
+    When strict_home_area is True (default), strictly isolates matching pools (e.g. Accra vs Tema).
     """
     target_num = parse_rating(target_rating)
 
@@ -57,10 +59,19 @@ def filter_and_rank_partners(
         else:
             diff = 0.0
 
+        # Exact home area match check when strict_home_area is True (Accra vs Tema isolation)
+        if (
+            strict_home_area
+            and target_home_area
+            and c.home_area
+            and target_home_area.strip().lower() != c.home_area.strip().lower()
+        ):
+            continue
+
         # Compatibility score (higher is better)
         score = 100.0 - (diff * 20.0)
 
-        # Same home area bonus
+        # Same home area bonus (when not strictly filtering or when areas match)
         if (
             target_home_area
             and c.home_area

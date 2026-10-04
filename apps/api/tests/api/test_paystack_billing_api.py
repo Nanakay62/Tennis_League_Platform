@@ -15,8 +15,20 @@ from app.leagues.models import Enrollment, EnrollmentStatus
 settings = get_settings()
 
 
+def _signed_paystack_post(client: AsyncClient, path: str, payload: dict):
+    raw_bytes = json.dumps(payload).encode("utf-8")
+    sig = hmac.new(
+        settings.PAYSTACK_SECRET_KEY.encode("utf-8"), raw_bytes, hashlib.sha512
+    ).hexdigest()
+    return client.post(
+        path,
+        content=raw_bytes,
+        headers={"Content-Type": "application/json", "x-paystack-signature": sig},
+    )
+
+
 @pytest.mark.asyncio
-async def test_paystack_checkout_session_creation(client: AsyncClient):
+async def test_paystack_checkout_session_creation(client: AsyncClient, seeded_catalog):
     """Verify that creating a checkout session creates an order in pending_payment status."""
     # 1. Register player
     reg_payload = {
@@ -45,7 +57,7 @@ async def test_paystack_checkout_session_creation(client: AsyncClient):
     order_id = data["order_id"]
 
     # 3. Check order is initially pending_payment
-    order_res = await client.get(f"/orders/{order_id}")
+    order_res = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res.status_code == 200
     order_data = order_res.json()
     assert order_data["status"] == "pending_payment"
@@ -54,7 +66,9 @@ async def test_paystack_checkout_session_creation(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_paystack_charge_success_creates_exactly_one_enrollment(client: AsyncClient):
+async def test_paystack_charge_success_creates_exactly_one_enrollment(
+    client: AsyncClient, seeded_catalog
+):
     """Verify that charge.success fulfills the order and creates exactly 1 active enrollment."""
     # 1. Register player
     reg_payload = {
@@ -75,7 +89,7 @@ async def test_paystack_charge_success_creates_exactly_one_enrollment(client: As
     res = await client.post("/checkout/sessions", json=checkout_payload, headers=headers)
     order_id = res.json()["order_id"]
 
-    order_res = await client.get(f"/orders/{order_id}")
+    order_res = await client.get(f"/orders/{order_id}", headers=headers)
     user_id = order_res.json()["user_id"]
 
     # 3. Deliver Paystack webhook: charge.success (MTN MoMo payment)
@@ -96,12 +110,12 @@ async def test_paystack_charge_success_creates_exactly_one_enrollment(client: As
         },
     }
 
-    wh_res = await client.post("/webhooks/paystack", json=webhook_event)
+    wh_res = await _signed_paystack_post(client, "/webhooks/paystack", webhook_event)
     assert wh_res.status_code == 200
     assert wh_res.json()["status"] == "success"
 
     # 4. Verify order state is now paid
-    order_res_after = await client.get(f"/orders/{order_id}")
+    order_res_after = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res_after.json()["status"] == "paid"
 
     # 5. Verify exactly 1 active enrollment was created in the database
@@ -120,7 +134,7 @@ async def test_paystack_charge_success_creates_exactly_one_enrollment(client: As
 
 
 @pytest.mark.asyncio
-async def test_paystack_webhook_idempotency_on_replay(client: AsyncClient):
+async def test_paystack_webhook_idempotency_on_replay(client: AsyncClient, seeded_catalog):
     """Verify that replaying a Paystack webhook event is idempotent and creates NO duplicate enrollments."""
     # 1. Register player
     reg_payload = {
@@ -141,36 +155,59 @@ async def test_paystack_webhook_idempotency_on_replay(client: AsyncClient):
     res = await client.post("/checkout/sessions", json=checkout_payload, headers=headers)
     order_id = res.json()["order_id"]
 
-    order_res = await client.get(f"/orders/{order_id}")
+    order_res = await client.get(f"/orders/{order_id}", headers=headers)
     user_id = order_res.json()["user_id"]
 
+    # 3. Simulate first webhook delivery
     webhook_event = {
         "event": "charge.success",
         "data": {
-            "id": 88776655,
+            "id": 88112233,
             "status": "success",
             "reference": order_id,
             "amount": 35000,
             "channel": "mobile_money",
             "currency": "GHS",
-            "gateway_response": "Successful Vodafone Cash",
+            "gateway_response": "Approved",
+            "metadata": {
+                "order_id": order_id,
+                "user_id": user_id,
+            },
         },
     }
 
-    # Initial delivery
-    res1 = await client.post("/webhooks/paystack", json=webhook_event)
+    res1 = await _signed_paystack_post(client, "/webhooks/paystack", webhook_event)
     assert res1.status_code == 200
+    assert res1.json()["status"] == "success"
 
-    # Replay delivery #1
-    res2 = await client.post("/webhooks/paystack", json=webhook_event)
+    # Verify order is paid
+    order_res_paid = await client.get(f"/orders/{order_id}", headers=headers)
+    assert order_res_paid.json()["status"] == "paid"
+
+    # Confirm database has strictly 1 enrollment
+    db_gen = client._transport.app.dependency_overrides.get(get_db, get_db)()
+    session = await anext(db_gen)
+    try:
+        stmt = select(Enrollment).where(
+            Enrollment.user_id == user_id,
+            Enrollment.program_id == "prog-accra-fall-2026",
+        )
+        enrollments = (await session.execute(stmt)).scalars().all()
+        assert len(enrollments) == 1
+    finally:
+        await session.close()
+
+    # 4. Replay EXACT same webhook (network duplicate or retry)
+    res2 = await _signed_paystack_post(client, "/webhooks/paystack", webhook_event)
     assert res2.status_code == 200
+    assert res2.json()["status"] == "success"
 
-    # Replay delivery #2
-    res3 = await client.post("/webhooks/paystack", json=webhook_event)
+    # 5. Replay third time to be absolutely certain
+    res3 = await _signed_paystack_post(client, "/webhooks/paystack", webhook_event)
     assert res3.status_code == 200
 
     # Check order is still paid
-    order_res_after = await client.get(f"/orders/{order_id}")
+    order_res_after = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res_after.json()["status"] == "paid"
 
     # Confirm database has still strictly 1 enrollment
@@ -188,7 +225,9 @@ async def test_paystack_webhook_idempotency_on_replay(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_paystack_charge_failed_marks_order_cancelled_with_no_enrollment(client: AsyncClient):
+async def test_paystack_charge_failed_marks_order_cancelled_with_no_enrollment(
+    client: AsyncClient, seeded_catalog
+):
     """Verify that charge.failed marks the order CANCELLED (not stuck in PENDING_PAYMENT) and creates 0 enrollments."""
     # 1. Register player
     reg_payload = {
@@ -210,7 +249,7 @@ async def test_paystack_charge_failed_marks_order_cancelled_with_no_enrollment(c
     order_id = res.json()["order_id"]
 
     # Order is pending initially
-    order_res_before = await client.get(f"/orders/{order_id}")
+    order_res_before = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res_before.json()["status"] == "pending_payment"
     user_id = order_res_before.json()["user_id"]
 
@@ -223,15 +262,16 @@ async def test_paystack_charge_failed_marks_order_cancelled_with_no_enrollment(c
             "reference": order_id,
             "amount": 35000,
             "channel": "mobile_money",
+            "currency": "GHS",
             "gateway_response": "Declined - Insufficient Funds",
         },
     }
 
-    wh_res = await client.post("/webhooks/paystack", json=webhook_event)
+    wh_res = await _signed_paystack_post(client, "/webhooks/paystack", webhook_event)
     assert wh_res.status_code == 200
 
     # 4. Verify order is now CANCELLED (not stuck in pending_payment!)
-    order_res_after = await client.get(f"/orders/{order_id}")
+    order_res_after = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res_after.json()["status"] == "cancelled"
 
     # 5. Verify NO enrollments were created
@@ -259,6 +299,7 @@ async def test_paystack_hmac_signature_verification(client: AsyncClient):
             "status": "success",
             "reference": "dummy_ref",
             "amount": 35000,
+            "currency": "GHS",
         },
     }
     raw_bytes = json.dumps(payload).encode("utf-8")

@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -40,6 +40,7 @@ class Court(Base):
 
 class CourtReview(Base):
     __tablename__ = "court_reviews"
+    __table_args__ = (UniqueConstraint("court_id", "user_id", name="uq_court_review_user"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     court_id: Mapped[str] = mapped_column(

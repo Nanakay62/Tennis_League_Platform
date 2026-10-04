@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -39,6 +39,14 @@ class Match(Base):
     status: Mapped[str] = mapped_column(String(30), default=MatchStatus.CONFIRMED, nullable=False)
     reporter_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    is_handicap: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    handicap_lead: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)
+    handicap_recipient_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("player_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
     )
     played_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False

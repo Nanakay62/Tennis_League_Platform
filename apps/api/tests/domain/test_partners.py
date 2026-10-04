@@ -25,47 +25,48 @@ def test_filter_and_rank_partners_rating_band():
             player_id="p1",
             display_name="Player 3.0",
             rating="3.0",
-            home_area="Sachsenhausen",
+            home_area="Tema",
             is_daytime=True,
-            phone="+491",
+            phone="+233241111111",
             email="p1@example.com",
         ),
         CandidatePartner(
             player_id="p2",
             display_name="Player 3.5 Same Area",
             rating="3.5",
-            home_area="Westend",
+            home_area="Accra",
             is_daytime=False,
-            phone="+492",
+            phone="+233242222222",
             email="p2@example.com",
         ),
         CandidatePartner(
             player_id="p3",
             display_name="Player 4.0",
             rating="4.0",
-            home_area="Nordend",
+            home_area="Tema",
             is_daytime=True,
-            phone="+493",
+            phone="+233243333333",
             email="p3@example.com",
         ),
         CandidatePartner(
             player_id="p4",
             display_name="Player 5.0 Outside Band",
             rating="5.0",
-            home_area="Westend",
+            home_area="Accra",
             is_daytime=False,
-            phone="+494",
+            phone="+233244444444",
             email="p4@example.com",
         ),
     ]
 
-    # Target is 3.5 in Westend
+    # Target is 3.5 in Accra (testing rating band ranking without strict area isolation)
     matches = filter_and_rank_partners(
         target_rating="3.5",
-        target_home_area="Westend",
+        target_home_area="Accra",
         target_is_daytime=False,
         candidates=candidates,
         max_rating_diff=0.5,
+        strict_home_area=False,
     )
 
     # Player 4 (5.0) should be excluded
@@ -75,8 +76,42 @@ def test_filter_and_rank_partners_rating_band():
     assert "p2" in matched_ids
     assert "p3" in matched_ids
 
-    # Player 2 should be ranked top because same rating (3.5), same area (Westend), same availability (False)
+    # Player 2 should be ranked top because same rating (3.5), same area (Accra), same availability (False)
     assert matches[0].player_id == "p2"
+
+
+def test_filter_and_rank_partners_strict_home_area():
+    candidates = [
+        CandidatePartner(
+            player_id="p1",
+            display_name="Accra Player",
+            rating="3.5",
+            home_area="Accra",
+            is_daytime=True,
+            phone="0241",
+            email="p1@example.com",
+        ),
+        CandidatePartner(
+            player_id="p2",
+            display_name="Tema Player",
+            rating="3.5",
+            home_area="Tema",
+            is_daytime=True,
+            phone="0242",
+            email="p2@example.com",
+        ),
+    ]
+
+    # Target in Accra with strict_home_area=True (default)
+    matches = filter_and_rank_partners(
+        target_rating="3.5",
+        target_home_area="Accra",
+        target_is_daytime=True,
+        candidates=candidates,
+    )
+
+    assert len(matches) == 1
+    assert matches[0].player_id == "p1"
 
 
 def test_evaluate_monthly_partner_reward():
@@ -91,7 +126,7 @@ def test_compute_poty_leaderboard():
         PlayerMatchRecord(
             player_id="p1",
             display_name="High Win Player",
-            home_area="Sachsenhausen",
+            home_area="Accra",
             rating="3.5",
             matches_played=10,
             matches_won=8,
@@ -101,7 +136,7 @@ def test_compute_poty_leaderboard():
         PlayerMatchRecord(
             player_id="p2",
             display_name="High Activity Player",
-            home_area="Westend",
+            home_area="Tema",
             rating="3.0",
             matches_played=15,
             matches_won=5,

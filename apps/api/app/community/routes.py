@@ -66,8 +66,9 @@ async def get_court(
     session: AsyncSession = Depends(get_db),
 ):
     """Retrieve full court detail with player reviews and ratings."""
+    default_market = await get_or_create_default_market(session)
     try:
-        return await get_court_detail(session, court_id=court_id)
+        return await get_court_detail(session, court_id=court_id, market_id=default_market.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -85,9 +86,11 @@ async def post_court_review(
 ):
     """Submit a rating (1-5) and review for a tennis court."""
     try:
-        return await add_court_review(session, court_id=court_id, user=user, req=req)
+        return await add_court_review(
+            session, court_id=court_id, user=user, req=req, market_id=user.market_id
+        )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/community/poty", response_model=list[POTYItemResponse])

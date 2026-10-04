@@ -1,6 +1,6 @@
 """Pydantic schemas for authentication, profiles, and settings."""
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserRegisterRequest(BaseModel):
@@ -12,6 +12,25 @@ class UserRegisterRequest(BaseModel):
     home_area: str = Field(default="Accra")
     is_daytime: bool = Field(default=False)
     market_slug: str = Field(default="accra")
+    gender: str = Field(default="unspecified")
+    birth_year: int | None = Field(default=None, ge=1900, le=2100)
+    favorite_link: str | None = Field(default=None, max_length=512)
+    game_description: str | None = Field(default=None, max_length=500)
+    about_me: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("home_area")
+    @classmethod
+    def validate_home_area(cls, v: str) -> str:
+        if v not in ("Accra", "Tema"):
+            raise ValueError("home_area must be either 'Accra' or 'Tema'")
+        return v
+
+    @field_validator("gender")
+    @classmethod
+    def validate_gender(cls, v: str) -> str:
+        if v not in ("male", "female", "non_binary", "unspecified"):
+            raise ValueError("gender must be one of: 'male', 'female', 'non_binary', 'unspecified'")
+        return v
 
 
 class UserLoginRequest(BaseModel):
@@ -39,6 +58,11 @@ class PlayerProfileResponse(BaseModel):
     veteran_match_count: int
     is_anonymized: bool
     avatar_url: str | None = None
+    gender: str = "unspecified"
+    birth_year: int | None = None
+    favorite_link: str | None = None
+    game_description: str | None = None
+    about_me: str | None = None
 
 
 class PlayerProfileUpdate(BaseModel):
@@ -47,6 +71,37 @@ class PlayerProfileUpdate(BaseModel):
     home_area: str | None = None
     is_daytime: bool | None = None
     avatar_url: str | None = None
+    gender: str | None = None
+    birth_year: int | None = Field(default=None, ge=1900, le=2100)
+    favorite_link: str | None = Field(default=None, max_length=512)
+    game_description: str | None = Field(default=None, max_length=500)
+    about_me: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("home_area")
+    @classmethod
+    def validate_home_area(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("Accra", "Tema"):
+            raise ValueError("home_area must be either 'Accra' or 'Tema'")
+        return v
+
+    @field_validator("gender")
+    @classmethod
+    def validate_gender(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("male", "female", "non_binary", "unspecified"):
+            raise ValueError("gender must be one of: 'male', 'female', 'non_binary', 'unspecified'")
+        return v
+
+    @field_validator("favorite_link")
+    @classmethod
+    def validate_favorite_link(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("Favorite link must be a valid URL starting with http:// or https://")
+        return v
 
 
 class AvatarUploadRequest(BaseModel):

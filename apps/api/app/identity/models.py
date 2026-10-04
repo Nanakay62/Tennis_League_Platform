@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -48,6 +48,9 @@ class User(Base):
 
 class PlayerProfile(Base):
     __tablename__ = "player_profiles"
+    __table_args__ = (
+        CheckConstraint("home_area IN ('Accra', 'Tema')", name="ck_player_profiles_home_area"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(
@@ -65,11 +68,18 @@ class PlayerProfile(Base):
     rating: Mapped[str] = mapped_column(
         String(10), default="3.5", nullable=False
     )  # 3.0, 3.5, 4.0, etc.
-    home_area: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    home_area: Mapped[str] = mapped_column(
+        String(100), default="Accra", server_default="Accra", nullable=False
+    )
     is_daytime: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # (d) flag
     veteran_match_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_anonymized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
+    gender: Mapped[str] = mapped_column(String(20), default="unspecified", nullable=False)
+    birth_year: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    favorite_link: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
+    game_description: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    about_me: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
     user: Mapped["User"] = relationship("User", back_populates="profile")
 

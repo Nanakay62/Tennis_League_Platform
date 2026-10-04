@@ -64,8 +64,10 @@ async def test_playoffs_generation_and_match_advancement(
         program_id="prog-playoffs-1",
         name="Competitive Playoff Div",
         rating_band="3.5",
+        playoff_min_wins=3,
     )
     db_session.add(div)
+    await db_session.flush()
 
     # Add 4 qualified standings rows (all have >= 3 wins)
     for i in range(4):
@@ -84,10 +86,32 @@ async def test_playoffs_generation_and_match_advancement(
         db_session.add(sr)
     await db_session.commit()
 
-    # 3. Generate Playoffs with min_wins=3 so all 4 qualify
+    # 3. Generate Playoffs with division.playoff_min_wins=3 so all 4 qualify
+    # Register admin for this market
+    admin_reg = await client.post(
+        "/auth/register",
+        json={
+            "email": "playoff_admin@example.com",
+            "password": "Password123!",
+            "display_name": "Playoff Admin",
+        },
+    )
+    assert admin_reg.status_code == 201
+    admin_token = admin_reg.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    admin_u = (
+        await db_session.execute(select(User).where(User.email == "playoff_admin@example.com"))
+    ).scalar_one()
+    from app.identity.models import UserRole
+
+    admin_u.role = UserRole.MARKET_ADMIN
+    admin_u.market_id = u1.market_id
+    await db_session.commit()
+
     gen_res = await client.post(
         "/divisions/div-playoffs-comp/playoffs/generate",
-        json={"min_wins": 3, "enable_veteran_seeding": False},
+        json={"enable_veteran_seeding": False},
+        headers=admin_headers,
     )
     assert gen_res.status_code == 201
     bracket = gen_res.json()
@@ -120,6 +144,7 @@ async def test_playoffs_generation_and_match_advancement(
     score_res = await client.post(
         f"/playoffs/matches/{sf1_id}/score",
         json={"winner_id": profile_ids[0], "score_summary": "6-2, 6-3"},
+        headers=admin_headers,
     )
     assert score_res.status_code == 200
     assert score_res.json()["winner"]["id"] == profile_ids[0]
@@ -134,6 +159,7 @@ async def test_playoffs_generation_and_match_advancement(
     await client.post(
         f"/playoffs/matches/{sf2_id}/score",
         json={"winner_id": profile_ids[1], "score_summary": "7-5, 6-4"},
+        headers=admin_headers,
     )
 
     # Verify Final match now has both Player 1 and Player 2!
@@ -147,8 +173,123 @@ async def test_playoffs_generation_and_match_advancement(
     await client.post(
         f"/playoffs/matches/{final_id}/score",
         json={"winner_id": profile_ids[0], "score_summary": "6-4, 4-6, 7-6"},
+        headers=admin_headers,
     )
 
     # Verify bracket status is completed
     completed_res = await client.get("/divisions/div-playoffs-comp/playoffs")
     assert completed_res.json()[0]["status"] == BracketStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_seeded_accra_and_tema_playoff_draw_generation(
+    client: AsyncClient, seeded_catalog: None, admin_headers: dict[str, str]
+):
+    """Verify Generate Playoff Draw succeeds for both Accra and Tema divisions against seeded database."""
+    # 1. Generate Accra Competitive Playoff Draw
+    accra_gen_res = await client.post(
+        "/divisions/div-accra-comp-1/playoffs/generate",
+        json={"enable_veteran_seeding": True},
+        headers=admin_headers,
+    )
+    assert accra_gen_res.status_code == 201
+    accra_bracket = accra_gen_res.json()
+    assert accra_bracket["division_id"] == "div-accra-comp-1"
+    assert "1" in accra_bracket["rounds"]
+
+    # Retrieve and verify Accra playoffs
+    accra_get = await client.get("/divisions/div-accra-comp-1/playoffs")
+    assert accra_get.status_code == 200
+    assert len(accra_get.json()) >= 1
+
+    # 2. Generate Tema Competitive Playoff Draw
+    tema_gen_res = await client.post(
+        "/divisions/div-tema-comp-1/playoffs/generate",
+        json={"enable_veteran_seeding": True},
+        headers=admin_headers,
+    )
+    assert tema_gen_res.status_code == 201
+    tema_bracket = tema_gen_res.json()
+    assert tema_bracket["division_id"] == "div-tema-comp-1"
+    assert "1" in tema_bracket["rounds"]
+
+    # Retrieve and verify Tema playoffs
+    tema_get = await client.get("/divisions/div-tema-comp-1/playoffs")
+    assert tema_get.status_code == 200
+    assert len(tema_get.json()) >= 1
+
+
+@pytest.mark.asyncio
+async def test_generate_requires_auth(client: AsyncClient, seeded_catalog: None):
+    r = await client.post("/divisions/div-accra-comp-1/playoffs/generate", json={})
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_generate_forbidden_for_player(
+    client: AsyncClient, seeded_catalog: None, player_headers: dict[str, str]
+):
+    r = await client.post(
+        "/divisions/div-accra-comp-1/playoffs/generate",
+        json={},
+        headers=player_headers,
+    )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_generate_ignores_client_min_wins(
+    client: AsyncClient, seeded_catalog: None, admin_headers: dict[str, str]
+):
+    r = await client.post(
+        "/divisions/div-accra-comp-1/playoffs/generate",
+        json={"min_wins": 0},
+        headers=admin_headers,
+    )
+    assert r.status_code in (201, 400)
+
+    # A division with nobody at >= playoff_min_wins must NOT generate
+    r2 = await client.post(
+        "/divisions/div-accra-skilled-1/playoffs/generate",
+        json={"min_wins": 0},
+        headers=admin_headers,
+    )
+    assert r2.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_score_playoff_match_twice_conflicts(
+    client: AsyncClient, seeded_catalog: None, admin_headers: dict[str, str]
+):
+    gen = await client.post(
+        "/divisions/div-accra-comp-1/playoffs/generate",
+        json={},
+        headers=admin_headers,
+    )
+    assert gen.status_code == 201
+    bracket = gen.json()
+    playable_match = None
+    for r_matches in bracket["rounds"].values():
+        for m in r_matches:
+            if not m["is_bye"] and m.get("player1") and m.get("player2"):
+                playable_match = m
+                break
+        if playable_match:
+            break
+    assert playable_match is not None
+    mid = playable_match["id"]
+    winner = playable_match["player1"]["id"]
+
+    r1 = await client.post(
+        f"/playoffs/matches/{mid}/score",
+        json={"winner_id": winner, "score_summary": "6-4, 6-4"},
+        headers=admin_headers,
+    )
+    assert r1.status_code == 200
+
+    r2 = await client.post(
+        f"/playoffs/matches/{mid}/score",
+        json={"winner_id": winner, "score_summary": "6-4, 6-4"},
+        headers=admin_headers,
+    )
+    assert r2.status_code == 409

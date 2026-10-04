@@ -1,10 +1,12 @@
 """Billing service: quote generation, Stripe checkout sessions, and idempotent webhooks."""
 
 import json
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any, cast
 
+import httpx
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,47 +23,92 @@ from app.identity.models import User
 from app.leagues.models import Enrollment, EnrollmentStatus
 from app.matches.models import AuditLog
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+class CheckoutError(ValueError):
+    """Business rule validation error during checkout/quote."""
+
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
 async def get_cart_quote(
-    session: AsyncSession, user_id: str | None, program_ids: list[str]
+    session: AsyncSession,
+    user_id: str | None,
+    program_ids: list[str],
+    market_id: str | None = None,
+    user: User | None = None,
 ) -> Quote:
     """Build cart quote using the pure domain pricing engine and available credits."""
     now_utc = datetime.now(UTC)
 
+    if len(program_ids) != len(set(program_ids)):
+        raise CheckoutError("Duplicate program in cart", status_code=400)
+
+    ids = list(dict.fromkeys(program_ids))
+    if not ids:
+        raise CheckoutError("Cart is empty", status_code=400)
+
     # 1. Fetch programs
-    stmt = select(Program).where(Program.id.in_(program_ids))
+    stmt = select(Program).where(Program.id.in_(ids))
+    if market_id:
+        stmt = stmt.where(Program.market_id == market_id)
     res = await session.execute(stmt)
     programs = res.scalars().all()
 
-    # If programs aren't in DB yet (seed fallback)
-    cart_items: list[CartItem] = []
-    if programs:
+    missing = set(ids) - {p.id for p in programs}
+    if missing:
+        raise CheckoutError(f"Unknown program(s): {sorted(missing)}", status_code=400)
+
+    # 2. If user is authenticated, validate region and existing active enrollments
+    if user is not None and user.profile:
+        user_area = (user.profile.home_area or "").strip().lower()
         for p in programs:
-            cart_items.append(
-                CartItem(
-                    program_id=p.id,
-                    program_type=p.program_type,
-                    base_price_cents=p.price_cents,
+            p_region = (getattr(p, "region", None) or "").strip().lower()
+            if p_region and user_area and p_region != user_area:
+                raise CheckoutError(
+                    f"Program '{p.id}' region ({p.region}) does not match your home playing area ({user.profile.home_area}).",
+                    status_code=400,
                 )
-            )
-    else:
-        # Fallback default program
-        for pid in program_ids:
-            cart_items.append(
-                CartItem(
-                    program_id=pid,
-                    program_type="flex_season",
-                    base_price_cents=35000,  # GH₵ 350.00
-                )
+
+        active_stmt = select(Enrollment.program_id).where(
+            Enrollment.user_id == user.id,
+            Enrollment.program_id.in_(ids),
+            Enrollment.status.in_([EnrollmentStatus.ACTIVE, EnrollmentStatus.PLACED_IN_DIVISION]),
+        )
+        active_res = await session.execute(active_stmt)
+        active_prog_ids = active_res.scalars().all()
+        if active_prog_ids:
+            raise CheckoutError(
+                f"You already have an active enrollment in program(s): {sorted(active_prog_ids)}",
+                status_code=400,
             )
 
-    # 2. Fetch user's unconsumed credits
+    cart_items = [
+        CartItem(
+            program_id=p.id,
+            program_type=p.program_type,
+            base_price_cents=p.price_cents,
+        )
+        for p in programs
+    ]
+
+    # 3. Fetch user's unconsumed credits (excluding credits locked by pending orders)
     domain_credits: list[DomainCredit] = []
     if user_id:
+        pending_credit_subq = select(Order.applied_credit_id).where(
+            Order.user_id == user_id,
+            Order.status == OrderStatus.PENDING_PAYMENT,
+            Order.applied_credit_id.isnot(None),
+        )
         credit_stmt = select(CreditModel).where(
-            CreditModel.user_id == user_id, CreditModel.is_consumed == False
+            CreditModel.user_id == user_id,
+            CreditModel.is_consumed == False,
+            CreditModel.id.not_in(pending_credit_subq),
         )
         res_credits = await session.execute(credit_stmt)
         for c in res_credits.scalars().all():
@@ -90,9 +137,16 @@ async def create_checkout_order(
     market_id: str,
     req: CreateCheckoutSessionRequest,
     user_email: str | None = None,
+    user: User | None = None,
 ) -> tuple[Order, str, str]:
     """Create a pending order and Paystack/Stripe checkout session."""
-    quote = await get_cart_quote(session, user_id, req.program_ids)
+    quote = await get_cart_quote(
+        session,
+        user_id=user_id,
+        program_ids=req.program_ids,
+        market_id=market_id,
+        user=user,
+    )
 
     order = Order(
         market_id=market_id,
@@ -127,8 +181,6 @@ async def create_checkout_order(
     # If currency is GHS or Paystack is configured, use Paystack (supports Ghana Mobile Money + Cards)
     if quote.currency == "GHS" or (is_real_paystack and not is_real_stripe):
         if is_real_paystack:
-            import httpx
-
             if not user_email:
                 user_res = await session.get(User, user_id)
                 user_email = user_res.email if user_res else "player@accratennis.com"
@@ -161,16 +213,25 @@ async def create_checkout_order(
                             },
                         },
                     )
-                if res.status_code == 200:
+                if res.status_code == 200 and res.json().get("status"):
                     pstk_data = res.json().get("data", {})
                     session_id = pstk_data.get("reference") or order.id
                     checkout_url = pstk_data.get("authorization_url") or callback_url
                 else:
-                    session_id = order.id
-                    checkout_url = callback_url
-            except (httpx.HTTPError, ValueError):
-                session_id = order.id
-                checkout_url = callback_url
+                    logger.warning(
+                        "Paystack transaction initialization failed with status %s",
+                        res.status_code,
+                    )
+                    raise CheckoutError(
+                        "Payment provider unavailable, please try again", status_code=502
+                    )
+            except (httpx.HTTPError, ValueError) as exc:
+                if isinstance(exc, CheckoutError):
+                    raise
+                logger.warning("Paystack communication error: %s", exc)
+                raise CheckoutError(
+                    "Payment provider unavailable, please try again", status_code=502
+                )
         else:
             # Sandbox / test simulation for Mobile Money & Cards
             session_id = order.id
@@ -232,6 +293,8 @@ async def fulfill_paystack_payment(
     status: str = "success",
     gateway_response: str | None = None,
     channel: str | None = None,
+    amount: int | None = None,
+    currency: str | None = None,
 ) -> bool:
     """Fulfill or cancel order idempotently upon verified Paystack webhook delivery."""
     # 1. Idempotency check: has this event already been processed?
@@ -240,7 +303,6 @@ async def fulfill_paystack_payment(
     )
     res_idemp = await session.execute(idemp_stmt)
     if res_idemp.scalar_one_or_none():
-        # Already processed, return immediately without duplicate side-effects
         return True
 
     # 2. Find order
@@ -256,20 +318,82 @@ async def fulfill_paystack_payment(
         return False
 
     if status == "success":
+        if order.status == OrderStatus.PAID:
+            return True
+        if order.status != OrderStatus.PENDING_PAYMENT:
+            return False
+
+        # Validate payment amount matches order total exactly
+        if amount is not None and amount != order.total_cents:
+            audit = AuditLog(
+                market_id=order.market_id,
+                entity_type="order",
+                entity_id=order.id,
+                actor_id=order.user_id,
+                action="paystack_amount_mismatch",
+                reason=f"Payment amount mismatch: expected {order.total_cents}, got {amount}",
+                changes_json=json.dumps(
+                    {"expected": order.total_cents, "received": amount, "status": "rejected"}
+                ),
+            )
+            session.add(audit)
+            await session.commit()
+            return False
+
+        if currency is not None and currency.upper() != order.currency.upper():
+            audit = AuditLog(
+                market_id=order.market_id,
+                entity_type="order",
+                entity_id=order.id,
+                actor_id=order.user_id,
+                action="paystack_currency_mismatch",
+                reason=f"Payment currency mismatch: expected {order.currency}, got {currency}",
+                changes_json=json.dumps(
+                    {"expected": order.currency, "received": currency, "status": "rejected"}
+                ),
+            )
+            session.add(audit)
+            await session.commit()
+            return False
+
         # 3. Transition order status to PAID
         order.status = OrderStatus.PAID
 
-        # 4. Consume applied credit if present
+        # 4. Consume applied credit if present (with double-spend prevention)
         if order.applied_credit_id:
-            credit_stmt = select(CreditModel).where(CreditModel.id == order.applied_credit_id)
+            credit_stmt = (
+                select(CreditModel)
+                .where(CreditModel.id == order.applied_credit_id)
+                .with_for_update()
+            )
             res_credit = await session.execute(credit_stmt)
             credit = res_credit.scalar_one_or_none()
             if credit:
+                if credit.is_consumed and credit.consumed_order_id != order.id:
+                    audit = AuditLog(
+                        market_id=order.market_id,
+                        entity_type="order",
+                        entity_id=order.id,
+                        actor_id=order.user_id,
+                        action="credit_already_consumed",
+                        reason=f"Credit {credit.id} already consumed by order {credit.consumed_order_id}",
+                    )
+                    session.add(audit)
+                    order.status = OrderStatus.CANCELLED
+                    await session.commit()
+                    return False
                 credit.is_consumed = True
                 credit.consumed_order_id = order.id
 
-        # 5. Create or activate enrollments for each program purchased
+        # 5. Create or activate enrollments for each valid program purchased
         for item in order.items:
+            prog = (
+                await session.execute(select(Program).where(Program.id == item.program_id))
+            ).scalar_one_or_none()
+            if not prog:
+                logger.error("Cannot enroll in non-existent program %s", item.program_id)
+                continue
+
             enr_stmt = select(Enrollment).where(
                 Enrollment.user_id == order.user_id,
                 Enrollment.program_id == item.program_id,
@@ -284,7 +408,22 @@ async def fulfill_paystack_payment(
                 )
                 session.add(enr)
             else:
-                enr.status = EnrollmentStatus.ACTIVE
+                if enr.status in (
+                    EnrollmentStatus.REMOVED,
+                    EnrollmentStatus.REFUNDED,
+                    EnrollmentStatus.WITHDRAWN,
+                ):
+                    audit = AuditLog(
+                        market_id=order.market_id,
+                        entity_type="enrollment",
+                        entity_id=enr.id,
+                        actor_id=order.user_id,
+                        action="enrollment_reactivation_blocked",
+                        reason=f"Enrollment already in terminal status: {enr.status}",
+                    )
+                    session.add(audit)
+                else:
+                    enr.status = EnrollmentStatus.ACTIVE
 
         # 6. Audit log entry
         audit = AuditLog(
@@ -312,9 +451,11 @@ async def fulfill_paystack_payment(
         session.add(processed_event)
 
     elif status in ("failed", "cancelled"):
-        # Transition order to CANCELLED — do NOT create any enrollments
-        order.status = OrderStatus.CANCELLED
+        if order.status == OrderStatus.PAID:
+            # Ignore late failure webhook for already fulfilled order
+            return True
 
+        order.status = OrderStatus.CANCELLED
         audit = AuditLog(
             market_id=order.market_id,
             entity_type="order",
@@ -341,6 +482,8 @@ async def fulfill_stripe_checkout(
     event_id: str,
     session_id: str,
     payment_intent_id: str | None = None,
+    amount: int | None = None,
+    currency: str | None = None,
 ) -> bool:
     """Fulfill order idempotently upon verified Stripe webhook delivery."""
     # 1. Idempotency check: has this event already been processed?
@@ -349,7 +492,6 @@ async def fulfill_stripe_checkout(
     )
     res_idemp = await session.execute(idemp_stmt)
     if res_idemp.scalar_one_or_none():
-        # Already processed, return immediately without duplicate side-effects
         return True
 
     # 2. Find order
@@ -364,23 +506,82 @@ async def fulfill_stripe_checkout(
     if not order:
         return False
 
+    if order.status == OrderStatus.PAID:
+        return True
+    if order.status != OrderStatus.PENDING_PAYMENT:
+        return False
+
+    # Validate payment amount matches order total exactly
+    if amount is not None and amount != order.total_cents:
+        audit = AuditLog(
+            market_id=order.market_id,
+            entity_type="order",
+            entity_id=order.id,
+            actor_id=order.user_id,
+            action="stripe_amount_mismatch",
+            reason=f"Payment amount mismatch: expected {order.total_cents}, got {amount}",
+            changes_json=json.dumps(
+                {"expected": order.total_cents, "received": amount, "status": "rejected"}
+            ),
+        )
+        session.add(audit)
+        await session.commit()
+        return False
+
+    if currency is not None and currency.upper() != order.currency.upper():
+        audit = AuditLog(
+            market_id=order.market_id,
+            entity_type="order",
+            entity_id=order.id,
+            actor_id=order.user_id,
+            action="stripe_currency_mismatch",
+            reason=f"Payment currency mismatch: expected {order.currency}, got {currency}",
+            changes_json=json.dumps(
+                {"expected": order.currency, "received": currency, "status": "rejected"}
+            ),
+        )
+        session.add(audit)
+        await session.commit()
+        return False
+
     # 3. Transition order status
     order.status = OrderStatus.PAID
     if payment_intent_id:
         order.stripe_payment_intent_id = payment_intent_id
 
-    # 4. Consume applied credit if present
+    # 4. Consume applied credit if present (with double-spend prevention)
     if order.applied_credit_id:
-        credit_stmt = select(CreditModel).where(CreditModel.id == order.applied_credit_id)
+        credit_stmt = (
+            select(CreditModel).where(CreditModel.id == order.applied_credit_id).with_for_update()
+        )
         res_credit = await session.execute(credit_stmt)
         credit = res_credit.scalar_one_or_none()
         if credit:
+            if credit.is_consumed and credit.consumed_order_id != order.id:
+                audit = AuditLog(
+                    market_id=order.market_id,
+                    entity_type="order",
+                    entity_id=order.id,
+                    actor_id=order.user_id,
+                    action="credit_already_consumed",
+                    reason=f"Credit {credit.id} already consumed by order {credit.consumed_order_id}",
+                )
+                session.add(audit)
+                order.status = OrderStatus.CANCELLED
+                await session.commit()
+                return False
             credit.is_consumed = True
             credit.consumed_order_id = order.id
 
-    # 5. Create or activate enrollments for each program purchased
+    # 5. Create or activate enrollments for each valid program purchased
     for item in order.items:
-        # Check if enrollment already exists
+        prog = (
+            await session.execute(select(Program).where(Program.id == item.program_id))
+        ).scalar_one_or_none()
+        if not prog:
+            logger.error("Cannot enroll in non-existent program %s", item.program_id)
+            continue
+
         enr_stmt = select(Enrollment).where(
             Enrollment.user_id == order.user_id,
             Enrollment.program_id == item.program_id,
@@ -395,7 +596,22 @@ async def fulfill_stripe_checkout(
             )
             session.add(enr)
         else:
-            enr.status = EnrollmentStatus.ACTIVE
+            if enr.status in (
+                EnrollmentStatus.REMOVED,
+                EnrollmentStatus.REFUNDED,
+                EnrollmentStatus.WITHDRAWN,
+            ):
+                audit = AuditLog(
+                    market_id=order.market_id,
+                    entity_type="enrollment",
+                    entity_id=enr.id,
+                    actor_id=order.user_id,
+                    action="enrollment_reactivation_blocked",
+                    reason=f"Enrollment already in terminal status: {enr.status}",
+                )
+                session.add(audit)
+            else:
+                enr.status = EnrollmentStatus.ACTIVE
 
     # 6. Audit log entry
     audit = AuditLog(

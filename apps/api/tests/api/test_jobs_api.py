@@ -31,7 +31,7 @@ async def test_device_registration_and_listing(client: AsyncClient, db_session: 
             "password": "Password123!",
             "display_name": "Device Tester",
             "rating": "3.5",
-            "home_area": "Sachsenhausen",
+            "home_area": "Accra",
         },
     )
     assert res.status_code == 201
@@ -94,6 +94,7 @@ async def test_kickoff_broadcast_job_with_gated_contacts(
         market_id=market.id,
         name="Fall Season 2026",
         slug="fall-season-2026",
+        region="Accra",
         program_type="flex_season",
         start_date=date(2026, 10, 1),
         end_date=date(2026, 11, 20),

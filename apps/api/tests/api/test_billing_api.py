@@ -3,9 +3,11 @@
 import pytest
 from httpx import AsyncClient
 
+from app.config import get_settings
+
 
 @pytest.mark.asyncio
-async def test_cart_quote_endpoint(client: AsyncClient):
+async def test_cart_quote_endpoint(client: AsyncClient, seeded_catalog):
     payload = {"program_ids": ["prog-accra-fall-2026"]}
     res = await client.post("/cart/quote", json=payload)
     assert res.status_code == 200
@@ -18,7 +20,7 @@ async def test_cart_quote_endpoint(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_checkout_session_and_order_status(client: AsyncClient):
+async def test_create_checkout_session_and_order_status(client: AsyncClient, seeded_catalog):
     # 1. Register player
     reg_payload = {
         "email": "buyer@example.com",
@@ -44,7 +46,7 @@ async def test_create_checkout_session_and_order_status(client: AsyncClient):
     order_id = data["order_id"]
 
     # 3. Check order status (should be pending_payment)
-    order_res = await client.get(f"/orders/{order_id}")
+    order_res = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res.status_code == 200
     order_data = order_res.json()
     assert order_data["id"] == order_id
@@ -53,7 +55,11 @@ async def test_create_checkout_session_and_order_status(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_stripe_webhook_fulfillment_and_idempotency(client: AsyncClient):
+async def test_stripe_webhook_fulfillment_and_idempotency(
+    client: AsyncClient, seeded_catalog, monkeypatch
+):
+    monkeypatch.setattr(get_settings(), "ALLOW_UNSIGNED_WEBHOOKS", True)
+
     # 1. Register player and create order
     reg_payload = {
         "email": "webhook_player@example.com",
@@ -80,6 +86,8 @@ async def test_stripe_webhook_fulfillment_and_idempotency(client: AsyncClient):
             "object": {
                 "id": session_id,
                 "payment_intent": "pi_test_98765",
+                "amount_total": 35000,
+                "currency": "GHS",
             }
         },
     }
@@ -90,7 +98,7 @@ async def test_stripe_webhook_fulfillment_and_idempotency(client: AsyncClient):
     assert wh_res1.json()["status"] == "success"
 
     # Verify order is now paid
-    order_res = await client.get(f"/orders/{order_id}")
+    order_res = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res.json()["status"] == "paid"
 
     # 3. Idempotency verification: Replay the EXACT same event
@@ -99,5 +107,5 @@ async def test_stripe_webhook_fulfillment_and_idempotency(client: AsyncClient):
     assert wh_res2.json()["status"] == "success"
 
     # Order remains paid, without errors
-    order_res_after = await client.get(f"/orders/{order_id}")
+    order_res_after = await client.get(f"/orders/{order_id}", headers=headers)
     assert order_res_after.json()["status"] == "paid"

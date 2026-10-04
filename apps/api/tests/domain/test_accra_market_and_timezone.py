@@ -33,8 +33,8 @@ async def test_accra_market_and_regions_creation(db_session: AsyncSession):
     assert "Tema" in regions
 
 
-def test_partner_matching_surfaces_same_region_and_nearby_region_without_code_changes():
-    """Verify partner matching surfaces same-region player first without logic changes."""
+def test_partner_matching_strictly_isolates_accra_and_tema_regions():
+    """Verify partner matching strictly isolates players by home region (never pooling Accra and Tema)."""
     candidates = [
         CandidatePartner(
             player_id="p-accra-1",
@@ -76,16 +76,12 @@ def test_partner_matching_surfaces_same_region_and_nearby_region_without_code_ch
         max_rating_diff=0.5,
     )
 
-    # Out of rating band (4.5) filtered out
-    assert len(ranked) == 2
+    # Strictly isolated: Tema player and out-of-band rating (4.5) are filtered out
+    assert len(ranked) == 1
 
-    # Player 1 (same region Accra) must rank first due to proximity bonus
+    # Only Player 1 (exact matching region Accra) is returned
     assert ranked[0].player_id == "p-accra-1"
     assert ranked[0].home_area == "Accra"
-
-    # Player 2 (adjacent region Tema) is included within the same market
-    assert ranked[1].player_id == "p-tema-1"
-    assert ranked[1].home_area == "Tema"
 
 
 def test_africa_accra_timezone_cutoff_boundary():
