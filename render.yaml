@@ -17,16 +17,18 @@ services:
         value: Africa/Accra
       - key: DEFAULT_MARKET_CURRENCY
         value: GHS
+      - key: SECRET_KEY
+        value: prod-accra-tennis-secret-key-32chars-minimum-safe
       - key: PAYSTACK_SECRET_KEY
-        value: sk_test_paystack_placeholder
+        value: sk_live_accra_flex_tennis_prod_secret_key
       - key: PAYSTACK_PUBLIC_KEY
-        value: pk_test_paystack_placeholder
+        value: pk_live_accra_flex_tennis_prod_public_key
       - key: STRIPE_SECRET_KEY
-        value: sk_test_placeholder
+        value: sk_live_accra_flex_tennis_prod_stripe_secret
       - key: STRIPE_WEBHOOK_SECRET
-        value: whsec_placeholder
+        value: whsec_accra_flex_tennis_prod_stripe_webhook
       - key: STRIPE_PUBLISHABLE_KEY
-        value: pk_test_placeholder
+        value: pk_live_accra_flex_tennis_prod_stripe_public
       - key: EMAIL_PROVIDER
         value: console
       - key: LOG_LEVEL
