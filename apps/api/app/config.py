@@ -3,6 +3,7 @@
 import contextlib
 import json
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,8 +17,9 @@ class Settings(BaseSettings):
     )
 
     # Environment
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: Literal["development", "test", "staging", "production"] = "development"
     DEBUG: bool = False  # Must remain False in production — enables stack trace leakage if True
+    PUBLIC_WEB_URL: str = "https://accra-tennis.com"
 
     # Market Defaults
     DEFAULT_MARKET_ID: str = "mkt-accra"
@@ -27,7 +29,7 @@ class Settings(BaseSettings):
 
     # Seeding
     SEED_DEMO_DATA: bool = False
-    SEED_DEMO_PASSWORD: str = "Password123!"
+    SEED_DEMO_PASSWORD: str = ""
 
     # Persistence
     DATABASE_URL: str = "postgresql+psycopg://league:league@localhost:5432/league"
@@ -113,14 +115,23 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
         """Strict production assertions ensuring no insecure keys, unsigned webhooks, or debug mode in production."""
-        if self.ENVIRONMENT in ("production", "staging") and self.ALLOW_UNSIGNED_WEBHOOKS:
-            raise ValueError("ALLOW_UNSIGNED_WEBHOOKS must be False in production and staging.")
         if self.ENVIRONMENT == "production":
             if self.DEBUG:
                 raise ValueError("DEBUG must be False in production.")
             if "insecure" in self.SECRET_KEY or len(self.SECRET_KEY) < 32:
                 raise ValueError(
                     "SECRET_KEY must be a cryptographically secure random string with at least 32 characters in production."
+                )
+        if self.ENVIRONMENT in ("production", "staging"):
+            if self.ALLOW_UNSIGNED_WEBHOOKS:
+                raise ValueError("ALLOW_UNSIGNED_WEBHOOKS must be False in production and staging.")
+            if "placeholder" in self.PAYSTACK_SECRET_KEY.lower():
+                raise ValueError(
+                    "PAYSTACK_SECRET_KEY cannot be a placeholder in production or staging."
+                )
+            if "placeholder" in self.STRIPE_WEBHOOK_SECRET.lower():
+                raise ValueError(
+                    "STRIPE_WEBHOOK_SECRET cannot be a placeholder in production or staging."
                 )
         return self
 

@@ -310,7 +310,7 @@ export default function CourtsDirectoryScreen() {
                 },
               ]}
             >
-              Carpet / Teppich
+              Carpet
             </Text>
           </TouchableOpacity>
 
@@ -343,7 +343,7 @@ export default function CourtsDirectoryScreen() {
                 },
               ]}
             >
-              Halle / Indoor
+              Indoor
             </Text>
           </TouchableOpacity>
 

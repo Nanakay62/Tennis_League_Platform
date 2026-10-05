@@ -242,7 +242,7 @@ export default function NotificationsScreen() {
                     </Text>
 
                     <Text style={[styles.historyTime, { color: colors.textMuted }]}>
-                      {new Date(item.created_at).toLocaleDateString("de-DE", {
+                      {new Date(item.created_at).toLocaleDateString("en-GH", {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",

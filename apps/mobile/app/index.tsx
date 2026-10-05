@@ -136,173 +136,180 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 2. Hero Card: Next Match (With Tennis Ball Image Backdrop and Fading White Gradient Overlay) */}
-      <View
-        style={[
-          styles.heroCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        {/* Backdrop Layer: Tennis Ball on Clay Court with Fading White Overlay */}
-        <View style={[styles.heroBackdrop, { pointerEvents: "none" }]}>
+      {/* 2. Hero Section: Next Match with Ambient Backdrop Behind the Card */}
+      <View style={styles.heroSectionWrapper}>
+        {/* Backdrop Layer Behind Card: Tennis Ball with Fading Gradient */}
+        <View style={[styles.heroOuterBackdrop, { pointerEvents: "none" }]}>
           <Image
             source={MOCK_IMAGES.heroTennisBall}
             style={[
-              styles.heroBackdropImage,
+              styles.heroOuterBackdropImage,
               {
-                left: isDesktop ? "32%" : "15%",
-                width: isDesktop ? "68%" : "85%",
+                left: isDesktop ? "36%" : "18%",
+                width: isDesktop ? "64%" : "82%",
               },
             ]}
             resizeMode="cover"
           />
-
-          {/* Fading White Horizontal Linear Gradient Overlay */}
           <LinearGradient
             colors={[
-              colors.surface,                          // 100% solid white on the left for crisp text contrast
-              colors.surface,                          // solid white spans player 1 and VS
-              "rgba(255, 255, 255, 0.96)",             // subtle transition start
-              "rgba(255, 255, 255, 0.65)",             // smooth blend
-              "rgba(255, 255, 255, 0.15)",             // tennis ball shines through vibrant
-              "rgba(255, 255, 255, 0.00)",             // transparent on the far right
+              colors.background,
+              colors.background,
+              isDark ? "rgba(15, 23, 42, 0.70)" : "rgba(248, 250, 252, 0.70)",
+              isDark ? "rgba(15, 23, 42, 0.20)" : "rgba(248, 250, 252, 0.20)",
+              "transparent",
             ]}
             locations={
               isDesktop
-                ? [0, 0.44, 0.58, 0.72, 0.88, 1.0]
-                : [0, 0.35, 0.52, 0.70, 0.88, 1.0]
+                ? [0, 0.44, 0.68, 0.88, 1.0]
+                : [0, 0.35, 0.60, 0.85, 1.0]
             }
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={StyleSheet.absoluteFill}
           />
+          <LinearGradient
+            colors={["transparent", colors.background]}
+            locations={[0.7, 1.0]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
         </View>
 
-        {/* Foreground Content */}
-        <View style={[styles.heroDetailsCol, { maxWidth: isDesktop ? 620 : "100%" }]}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroBadgeRow}>
-              <Feather
-                name="calendar"
-                size={14}
-                color={colors.primary}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.heroNextMatchText, { color: colors.textPrimary }]}>
-                Next Match
-              </Text>
-              <Badge label="Round 3" variant="neutral" size="sm" style={{ marginLeft: 8 }} />
-            </View>
-            <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
-          </View>
-
-          {/* Players Faceoff */}
-          <View style={styles.playersFaceoff}>
-            {/* Player 1 (User) */}
-            <View style={styles.playerBlock}>
-              <View style={styles.avatarWrapper}>
-                <Avatar name={userName} avatarUrl={userAvatarUrl} size="lg" />
-                <View style={styles.youBadge}>
-                  <Text style={styles.youBadgeText}>YOU</Text>
-                </View>
+        {/* Clean, Solid Card Consistent with the Rest of the Page */}
+        <View
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          {/* Foreground Content */}
+          <View style={styles.heroDetailsCol}>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroBadgeRow}>
+                <Feather
+                  name="calendar"
+                  size={14}
+                  color={colors.primary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroNextMatchText, { color: colors.textPrimary }]}>
+                  Next Match
+                </Text>
+                <Badge label="Round 3" variant="neutral" size="sm" style={{ marginLeft: 8 }} />
               </View>
-              <Text
-                style={[styles.heroPlayerName, { color: colors.textPrimary }]}
-                numberOfLines={1}
-              >
-                {userName}
-              </Text>
-              <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
-                Competitive 3.5
-              </Text>
+              <View style={[styles.heroLiveDot, { backgroundColor: colors.success }]} />
             </View>
 
-            {/* VS Marker */}
-            <View style={styles.vsContainer}>
-              <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
+            {/* Players Faceoff */}
+            <View style={styles.playersFaceoff}>
+              {/* Player 1 (User) */}
+              <View style={styles.playerBlock}>
+                <View style={styles.avatarWrapper}>
+                  <Avatar name={userName} avatarUrl={userAvatarUrl} size="lg" />
+                  <View style={styles.youBadge}>
+                    <Text style={styles.youBadgeText}>YOU</Text>
+                  </View>
+                </View>
+                <Text
+                  style={[styles.heroPlayerName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {userName}
+                </Text>
+                <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
+                  Competitive 3.5
+                </Text>
+              </View>
+
+              {/* VS Marker */}
+              <View style={styles.vsContainer}>
+                <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
+              </View>
+
+              {/* Player 2 (Opponent) */}
+              <View style={styles.playerBlock}>
+                <Avatar name={opponentName} size="lg" />
+                <Text
+                  style={[styles.heroPlayerName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {opponentName}
+                </Text>
+                <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
+                  Competitive 3.5
+                </Text>
+              </View>
             </View>
 
-            {/* Player 2 (Opponent) */}
-            <View style={styles.playerBlock}>
-              <Avatar name={opponentName} size="lg" />
-              <Text
-                style={[styles.heroPlayerName, { color: colors.textPrimary }]}
-                numberOfLines={1}
-              >
-                {opponentName}
-              </Text>
-              <Text style={[styles.heroPlayerSub, { color: colors.textSecondary }]}>
-                Competitive 3.5
-              </Text>
+            {/* Match Metadata Row */}
+            <View style={styles.heroMetaWrap}>
+              <View style={styles.heroMetaItem}>
+                <Feather
+                  name="clock"
+                  size={13}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                  Thu, Oct 8 • 18:00
+                </Text>
+              </View>
+              <View style={styles.heroMetaItem}>
+                <Feather
+                  name="map-pin"
+                  size={13}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                  Accra Lawn Tennis Club
+                </Text>
+              </View>
+              <View style={styles.heroMetaItem}>
+                <Feather
+                  name="grid"
+                  size={13}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
+                  Clay Court 4
+                </Text>
+              </View>
             </View>
-          </View>
 
-          {/* Match Metadata Row */}
-          <View style={styles.heroMetaWrap}>
-            <View style={styles.heroMetaItem}>
-              <Feather
-                name="clock"
-                size={13}
-                color={colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                Thu, Oct 8 • 18:00
-              </Text>
-            </View>
-            <View style={styles.heroMetaItem}>
-              <Feather
-                name="map-pin"
-                size={13}
-                color={colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                TC Palmengarten
-              </Text>
-            </View>
-            <View style={styles.heroMetaItem}>
-              <Feather
-                name="grid"
-                size={13}
-                color={colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                Clay Court 4
-              </Text>
-            </View>
-          </View>
-
-          {/* Action Buttons */}
-          <View
-            style={[
-              styles.heroActionsRow,
-              { flexDirection: isDesktop ? "row" : "column" },
-            ]}
-          >
-            <Button
-              variant="primary"
-              size="md"
-              href="/divisions/div-accra-comp-1"
-              icon="check-circle"
-              style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
+            {/* Action Buttons */}
+            <View
+              style={[
+                styles.heroActionsRow,
+                { flexDirection: isDesktop ? "row" : "column" },
+              ]}
             >
-              Confirm Match Details
-            </Button>
+              <Button
+                variant="primary"
+                size="md"
+                href="/divisions/div-accra-comp-1"
+                icon="check-circle"
+                style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
+              >
+                Confirm Match Details
+              </Button>
 
-            <Button
-              variant="secondary"
-              size="md"
-              href="/scores/submit"
-              icon="edit-3"
-              style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
-            >
-              Report Score
-            </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                href="/scores/submit"
+                icon="edit-3"
+                style={isDesktop ? styles.heroActionBtnDesktop : styles.heroActionBtnMobile}
+              >
+                Report Score
+              </Button>
+            </View>
           </View>
         </View>
       </View>
@@ -547,7 +554,7 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.promoBottomRow}>
-                <Text style={styles.promoPrice}>€34.95</Text>
+                <Text style={styles.promoPrice}>GH₵ 350</Text>
                 <Button
                   variant="primary"
                   size="sm"
@@ -602,24 +609,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Hero Next Match Card
-  heroCard: {
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: "hidden",
+  // Hero Next Match Card & Backdrop
+  heroSectionWrapper: {
     position: "relative",
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 6,
+    overflow: "hidden",
   },
-  heroBackdrop: {
+  heroOuterBackdrop: {
     ...StyleSheet.absoluteFill,
     overflow: "hidden",
+    opacity: 0.35,
   },
-  heroBackdropImage: {
+  heroOuterBackdropImage: {
     position: "absolute",
     right: 0,
     top: 0,
     bottom: 0,
     height: "100%",
+  },
+  heroCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+    position: "relative",
   },
   heroDetailsCol: {
     position: "relative",

@@ -1,6 +1,14 @@
-"""Pydantic schemas for authentication, profiles, and settings."""
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+Region = Literal["Accra", "Tema"]
+
+
+def _norm_region(v: Any) -> Any:
+    if v is None:
+        return v
+    return str(v).strip().title()
 
 
 class UserRegisterRequest(BaseModel):
@@ -9,7 +17,7 @@ class UserRegisterRequest(BaseModel):
     display_name: str = Field(min_length=2, max_length=100)
     phone: str = Field(default="", max_length=30)
     rating: str = Field(default="3.5")  # e.g. "3.0", "3.5", "4.0"
-    home_area: str = Field(default="Accra")
+    home_area: Region = "Accra"
     is_daytime: bool = Field(default=False)
     market_slug: str = Field(default="accra")
     gender: str = Field(default="unspecified")
@@ -18,12 +26,7 @@ class UserRegisterRequest(BaseModel):
     game_description: str | None = Field(default=None, max_length=500)
     about_me: str | None = Field(default=None, max_length=1000)
 
-    @field_validator("home_area")
-    @classmethod
-    def validate_home_area(cls, v: str) -> str:
-        if v not in ("Accra", "Tema"):
-            raise ValueError("home_area must be either 'Accra' or 'Tema'")
-        return v
+    _norm_home_area = field_validator("home_area", mode="before")(_norm_region)
 
     @field_validator("gender")
     @classmethod
@@ -68,7 +71,7 @@ class PlayerProfileResponse(BaseModel):
 class PlayerProfileUpdate(BaseModel):
     display_name: str | None = None
     phone: str | None = None
-    home_area: str | None = None
+    home_area: Region | None = None
     is_daytime: bool | None = None
     avatar_url: str | None = None
     gender: str | None = None
@@ -77,12 +80,7 @@ class PlayerProfileUpdate(BaseModel):
     game_description: str | None = Field(default=None, max_length=500)
     about_me: str | None = Field(default=None, max_length=1000)
 
-    @field_validator("home_area")
-    @classmethod
-    def validate_home_area(cls, v: str | None) -> str | None:
-        if v is not None and v not in ("Accra", "Tema"):
-            raise ValueError("home_area must be either 'Accra' or 'Tema'")
-        return v
+    _norm_home_area = field_validator("home_area", mode="before")(_norm_region)
 
     @field_validator("gender")
     @classmethod

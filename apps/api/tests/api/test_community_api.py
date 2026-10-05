@@ -215,7 +215,7 @@ async def test_referral_info_and_poty_endpoints(client: AsyncClient, db_session:
     # Privacy check: referral code must NOT contain email or user's email username
     assert "referral_user" not in ref_data["referral_code"].lower()
     assert ref_data["referral_code"].startswith("TENNIS-")
-    assert len(ref_data["referral_code"]) == 15
+    assert len(ref_data["referral_code"]) == 13
     assert ref_data["referral_code"].isupper()
 
     # 3. Query GET /community/poty

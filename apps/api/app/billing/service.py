@@ -46,9 +46,6 @@ async def get_cart_quote(
     """Build cart quote using the pure domain pricing engine and available credits."""
     now_utc = datetime.now(UTC)
 
-    if len(program_ids) != len(set(program_ids)):
-        raise CheckoutError("Duplicate program in cart", status_code=400)
-
     ids = list(dict.fromkeys(program_ids))
     if not ids:
         raise CheckoutError("Cart is empty", status_code=400)
@@ -323,6 +320,20 @@ async def fulfill_paystack_payment(
         if order.status != OrderStatus.PENDING_PAYMENT:
             return False
 
+        if settings.ENVIRONMENT in ("production", "staging") and amount is None:
+            audit = AuditLog(
+                market_id=order.market_id,
+                entity_type="order",
+                entity_id=order.id,
+                actor_id=order.user_id,
+                action="paystack_amount_missing",
+                reason="Payment amount missing in webhook payload",
+                changes_json=json.dumps({"status": "rejected"}),
+            )
+            session.add(audit)
+            await session.commit()
+            return False
+
         # Validate payment amount matches order total exactly
         if amount is not None and amount != order.total_cents:
             audit = AuditLog(
@@ -509,6 +520,20 @@ async def fulfill_stripe_checkout(
     if order.status == OrderStatus.PAID:
         return True
     if order.status != OrderStatus.PENDING_PAYMENT:
+        return False
+
+    if settings.ENVIRONMENT in ("production", "staging") and amount is None:
+        audit = AuditLog(
+            market_id=order.market_id,
+            entity_type="order",
+            entity_id=order.id,
+            actor_id=order.user_id,
+            action="stripe_amount_missing",
+            reason="Payment amount missing in webhook payload",
+            changes_json=json.dumps({"status": "rejected"}),
+        )
+        session.add(audit)
+        await session.commit()
         return False
 
     # Validate payment amount matches order total exactly

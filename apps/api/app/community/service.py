@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.community.models import Court, CourtReview, Referral
+from app.config import get_settings
+
+settings = get_settings()
 from app.community.schemas import (
     CourtDetailResponse,
     CourtResponse,
@@ -41,16 +44,16 @@ async def find_matching_partners(
     if not user_prof:
         raise ValueError("Player profile required to match with partners.")
 
+    if not (user_prof.home_area or "").strip():
+        return []
+
     # Load other active players in the same market and exact same home area
     conditions = [
         PlayerProfile.market_id == user.market_id,
         PlayerProfile.user_id != user.id,
         User.is_active.is_(True),
+        func.lower(func.trim(PlayerProfile.home_area)) == func.lower(user_prof.home_area.strip()),
     ]
-    if user_prof.home_area:
-        conditions.append(
-            func.lower(PlayerProfile.home_area) == func.lower(user_prof.home_area.strip())
-        )
 
     stmt = (
         select(PlayerProfile, User).join(User, PlayerProfile.user_id == User.id).where(*conditions)
@@ -355,7 +358,7 @@ async def get_or_create_user_referral_info(
         import secrets
 
         # Create a clean referral code without leaking email or identity details
-        code = f"TENNIS-{secrets.token_hex(4).upper()}"
+        code = f"TENNIS-{secrets.token_hex(3).upper()}"
         initial_ref = Referral(
             referrer_id=user.id,
             referral_code=code,
@@ -371,7 +374,7 @@ async def get_or_create_user_referral_info(
 
     return ReferralInfoResponse(
         referral_code=code,
-        referral_link=f"https://accra-tennis.com/join?ref={code}",
+        referral_link=f"{settings.PUBLIC_WEB_URL}/join?ref={code}",
         reward_credit_cents=500,
         completed_referrals_count=completed,
         pending_referrals_count=pending,

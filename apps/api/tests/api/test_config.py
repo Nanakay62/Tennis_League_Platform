@@ -42,10 +42,32 @@ def test_settings_production_valid():
         ENVIRONMENT="production",
         DEBUG=False,
         SECRET_KEY="a" * 32,
+        PAYSTACK_SECRET_KEY="sk_live_real_paystack_secret",
+        STRIPE_WEBHOOK_SECRET="whsec_real_stripe_webhook_secret",
     )
     assert settings.ENVIRONMENT == "production"
     assert settings.DEBUG is False
     assert len(settings.SECRET_KEY) == 32
+
+
+def test_settings_production_rejects_placeholder_secrets():
+    with pytest.raises(ValidationError, match="PAYSTACK_SECRET_KEY cannot be a placeholder"):
+        Settings(
+            ENVIRONMENT="production",
+            DEBUG=False,
+            SECRET_KEY="a" * 32,
+            PAYSTACK_SECRET_KEY="sk_test_paystack_placeholder",
+            STRIPE_WEBHOOK_SECRET="whsec_real_secret",
+        )
+
+    with pytest.raises(ValidationError, match="STRIPE_WEBHOOK_SECRET cannot be a placeholder"):
+        Settings(
+            ENVIRONMENT="production",
+            DEBUG=False,
+            SECRET_KEY="a" * 32,
+            PAYSTACK_SECRET_KEY="sk_live_real_secret",
+            STRIPE_WEBHOOK_SECRET="whsec_placeholder",
+        )
 
 
 def test_cors_origins_empty_string_fallback():

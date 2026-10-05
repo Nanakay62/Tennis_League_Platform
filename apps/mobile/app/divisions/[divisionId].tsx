@@ -466,7 +466,7 @@ export default function DivisionDetailScreen() {
                                       </Text>
                                     ) : m.deadline ? (
                                       <Text style={[styles.bDeadline, { color: colors.textSecondary }]}>
-                                        Deadline: {new Date(m.deadline).toLocaleDateString("de-DE", { month: "short", day: "numeric" })}
+                                        Deadline: {new Date(m.deadline).toLocaleDateString("en-GH", { month: "short", day: "numeric" })}
                                       </Text>
                                     ) : null}
 

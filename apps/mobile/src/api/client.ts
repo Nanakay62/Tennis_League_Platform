@@ -630,7 +630,9 @@ export async function getCourts(filters?: {
     if (filters?.has_hitting_wall !== undefined)
       params.append("has_hitting_wall", String(filters.has_hitting_wall));
 
-    const res = await fetch(`${API_BASE_URL}/courts?${params.toString()}`);
+    const qs = params.toString();
+    const url = qs ? `${API_BASE_URL}/courts?${qs}` : `${API_BASE_URL}/courts`;
+    const res = await fetch(url);
     if (!res.ok) throw new ApiError(res.status, `HTTP error: ${res.status}`);
     return await res.json();
   } catch (err) {

@@ -135,7 +135,7 @@ async def test_checkout_validation_checks_b1(client: AsyncClient, seeded_catalog
     else:
         assert empty_cart_res.status_code == 422
 
-    # 3. Duplicate programs in cart -> 400
+    # 3. Duplicate programs in cart -> deduplicated, status 200 with 1 item
     dup_cart_res = await client.post(
         "/checkout/sessions",
         headers=headers_accra,
@@ -144,8 +144,13 @@ async def test_checkout_validation_checks_b1(client: AsyncClient, seeded_catalog
             "success_url": "tennisleague://success",
         },
     )
-    assert dup_cart_res.status_code == 400
-    assert "Duplicate program in cart" in dup_cart_res.json()["detail"]
+    assert dup_cart_res.status_code == 200
+    order_res = await client.get(
+        f"/orders/{dup_cart_res.json()['order_id']}",
+        headers=headers_accra,
+    )
+    assert order_res.status_code == 200
+    assert len(order_res.json()["items"]) == 1
 
     # 4. City mismatch: Accra player trying to buy Tema program -> 400
     mismatch_res = await client.post(

@@ -51,22 +51,19 @@ def filter_and_rank_partners(
     for c in candidates:
         cand_num = parse_rating(c.rating)
 
-        # NTRP rating filter (±0.5)
-        if target_num is not None and cand_num is not None:
-            diff = abs(target_num - cand_num)
-            if diff > max_rating_diff + 0.01:
-                continue
-        else:
-            diff = 0.0
+        # NTRP rating filter (both must have rating, within ±0.5)
+        if target_num is None or cand_num is None:
+            continue
+        diff = abs(target_num - cand_num)
+        if diff > max_rating_diff + 0.01:
+            continue
 
         # Exact home area match check when strict_home_area is True (Accra vs Tema isolation)
-        if (
-            strict_home_area
-            and target_home_area
-            and c.home_area
-            and target_home_area.strip().lower() != c.home_area.strip().lower()
-        ):
-            continue
+        if strict_home_area:
+            norm_target = (target_home_area or "").strip().lower()
+            norm_cand = (c.home_area or "").strip().lower()
+            if not norm_target or not norm_cand or norm_target != norm_cand:
+                continue
 
         # Compatibility score (higher is better)
         score = 100.0 - (diff * 20.0)

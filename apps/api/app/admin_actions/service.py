@@ -14,7 +14,7 @@ from app.admin_actions.schemas import (
     TransferPlayerRequest,
     VoidMatchRequest,
 )
-from app.catalog.models import Division
+from app.catalog.models import Division, Program
 from app.domain.eligibility import check_division_eligibility
 from app.identity.models import PlayerProfile, User
 from app.leagues.models import Enrollment, EnrollmentStatus
@@ -44,6 +44,8 @@ async def execute_bulk_placement(
     if not div:
         raise ValueError(f"Target division '{req.division_id}' not found.")
 
+    program = await session.get(Program, div.program_id)
+
     placed_count = 0
     skipped_players: list[dict[str, str]] = []
     last_audit_id = ""
@@ -68,6 +70,21 @@ async def execute_bulk_placement(
                     "user_id": user_id,
                     "player_name": prof.display_name if prof else user_id,
                     "reason": ineligibility_reason or "Ineligible",
+                }
+            )
+            continue
+
+        # Check player region matches program region (Finding #12 / Decision 2)
+        if (
+            program
+            and (prof.home_area if prof else "").strip().lower()
+            != (program.region or "").strip().lower()
+        ):
+            skipped_players.append(
+                {
+                    "user_id": user_id,
+                    "player_name": prof.display_name if prof else user_id,
+                    "reason": f"Player region {(prof.home_area if prof else None)!r} does not match division region {program.region!r}",
                 }
             )
             continue
@@ -155,6 +172,15 @@ async def execute_transfer_player(
     if not is_eligible:
         raise ValueError(
             f"Player '{prof.display_name if prof else req.user_id}' is not eligible for division '{target_div.name}': {ineligibility_reason}"
+        )
+    target_program = await session.get(Program, target_div.program_id)
+    if (
+        target_program
+        and (prof.home_area if prof else "").strip().lower()
+        != (target_program.region or "").strip().lower()
+    ):
+        raise ValueError(
+            f"Player region {(prof.home_area if prof else None)!r} does not match division region {target_program.region!r}"
         )
 
     stmt = select(Enrollment).where(

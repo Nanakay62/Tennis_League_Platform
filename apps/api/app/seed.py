@@ -280,7 +280,7 @@ async def seed_accra_and_tema_market(session: AsyncSession) -> None:
             rating=rating,
             home_area=area,
             is_daytime=daytime,
-            veteran_match_count=match_count,
+            veteran_match_count=0,
             gender="male",
             birth_year=1990,
         )
@@ -360,7 +360,7 @@ async def seed_accra_and_tema_market(session: AsyncSession) -> None:
             rating=rating,
             home_area=area,
             is_daytime=daytime,
-            veteran_match_count=match_count,
+            veteran_match_count=0,
             gender="male",
             birth_year=1988,
         )
